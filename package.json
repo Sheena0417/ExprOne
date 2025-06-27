@@ -2,11 +2,10 @@
   "name": "expression_control",
   "version": "1.0.0",
   "main": "vite.config.js",
-"scripts": {
-  "build": "vite build",
-  "watch": "vite build --watch"
-},
-
+  "scripts": {
+    "build": "vite build",
+    "watch": "CHOKIDAR_USEPOLLING=true npx rollup -c --watch"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Sheena0417/Expression_Control.git"
