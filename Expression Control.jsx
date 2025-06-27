@@ -9,81 +9,133 @@
         win.spacing = 10;
         win.margins = 10;
 
-        var propDropdown = win.add("dropdownlist", undefined, []);
-        propDropdown.preferredSize.width = 200;
+        var scanGroup = win.add("group");
+        var scanBtn = scanGroup.add("button", undefined, "this layer");
+        var allPropsDropdown = scanGroup.add("dropdownlist", undefined, []);
+        allPropsDropdown.preferredSize.width = 250;
 
-        var getBtn = win.add("button", undefined, "This Layer");
+        var existingGroup = win.add("group");
+        existingGroup.orientation = "row";
+        existingGroup.add("statictext", undefined, "Existing expressions:");
+        var exprPropsDropdown = existingGroup.add("dropdownlist", undefined, []);
+        exprPropsDropdown.preferredSize.width = 250;
 
-        var exprInput = win.add("edittext", undefined, "", {
-            multiline: true,
-            scrolling: true
-        });
-        exprInput.preferredSize = [200, 100];
+        var textEdit = win.add("edittext", undefined, "", { multiline: true });
+        textEdit.preferredSize = [300, 120];
 
         var applyBtn = win.add("button", undefined, "Apply Expression");
 
-        getBtn.onClick = function () {
-            propDropdown.removeAll();
+        function scanExpressionProps(group, path, results, existing) {
+            for (var i = 1; i <= group.numProperties; i++) {
+                var prop = group.property(i);
+                if (!prop) continue;
 
+                var newPath = path.length > 0 ? path + " -> " + prop.name : prop.name;
+
+                if (
+                    prop.canSetExpression &&
+                    prop.propertyType === PropertyType.PROPERTY &&
+                    typeof prop.expression !== "undefined"
+                ) {
+                    results.push({ ref: prop, name: newPath });
+                    if (prop.expression && prop.expression !== "") {
+                        existing.push({ ref: prop, name: newPath });
+                    }
+                }
+
+                if (
+                    prop.propertyType === PropertyType.INDEXED_GROUP ||
+                    prop.propertyType === PropertyType.NAMED_GROUP
+                ) {
+                    scanExpressionProps(prop, newPath, results, existing);
+                }
+            }
+        }
+
+        scanBtn.onClick = function () {
             var comp = app.project.activeItem;
             if (!(comp instanceof CompItem)) {
                 alert("Please open a composition.");
                 return;
             }
 
-            var layers = comp.selectedLayers;
-            if (layers.length === 0) {
-                alert("Please select at least one layer.");
+            var layer = comp.selectedLayers[0];
+            if (!layer) {
+                alert("Please select one layer.");
                 return;
             }
 
-            var props = layers[0].property("ADBE Transform Group");
-            if (!props) {
-                alert("No Transform group found.");
-                return;
+            allPropsDropdown.removeAll();
+            exprPropsDropdown.removeAll();
+            var props = [], exprProps = [];
+
+            scanExpressionProps(layer, "", props, exprProps);
+
+            for (var i = 0; i < props.length; i++) {
+                var item = allPropsDropdown.add("item", props[i].name);
+                item.prop = props[i].ref;
             }
 
-            for (var i = 1; i <= props.numProperties; i++) {
-                var prop = props.property(i);
-                if (prop.canSetExpression) {
-                    propDropdown.add("item", prop.name);
+            var blank = exprPropsDropdown.add("item", "-----");
+            blank.prop = null;
+            for (var j = 0; j < exprProps.length; j++) {
+                var item = exprPropsDropdown.add("item", exprProps[j].name);
+                item.prop = exprProps[j].ref;
+            }
+
+            // 初期状態を空欄にしておく
+            allPropsDropdown.selection = null;
+            exprPropsDropdown.selection = 0;
+            textEdit.text = "";
+        };
+
+        function syncDropdowns(changedDropdown) {
+            var selectedItem = changedDropdown.selection;
+            if (!selectedItem) return;
+            var targetProp = selectedItem.prop;
+
+            if (targetProp) {
+                try {
+                    textEdit.text = targetProp.expression || "";
+                } catch (e) {
+                    textEdit.text = "";
+                }
+            } else {
+                textEdit.text = "";
+            }
+
+            var otherDropdown = (changedDropdown === allPropsDropdown) ? exprPropsDropdown : allPropsDropdown;
+            for (var i = 0; i < otherDropdown.items.length; i++) {
+                if (otherDropdown.items[i].prop === targetProp) {
+                    otherDropdown.selection = i;
+                    return;
                 }
             }
+            if (changedDropdown === allPropsDropdown) exprPropsDropdown.selection = 0;
+        }
 
-            if (propDropdown.items.length > 0) {
-                propDropdown.selection = 0;
-            }
+        allPropsDropdown.onChange = function () {
+            syncDropdowns(allPropsDropdown);
+        };
+
+        exprPropsDropdown.onChange = function () {
+            syncDropdowns(exprPropsDropdown);
         };
 
         applyBtn.onClick = function () {
-            var comp = app.project.activeItem;
-            if (!(comp instanceof CompItem)) {
-                alert("Please open a composition.");
-                return;
-            }
-
-            var layers = comp.selectedLayers;
-            if (layers.length === 0) {
-                alert("Please select at least one layer.");
-                return;
-            }
-
-            var layer = layers[0];
-            var props = layer.property("ADBE Transform Group");
-            var selection = propDropdown.selection;
-            if (!selection) {
+            var item = allPropsDropdown.selection;
+            if (!item || !item.prop) {
                 alert("Please select a property.");
                 return;
             }
 
-            var prop = props.property(selection.text);
-            if (prop && prop.canSetExpression) {
-                app.beginUndoGroup("Apply Expression");
-                prop.expression = exprInput.text;
-                app.endUndoGroup();
-            } else {
-                alert("Cannot apply expression to this property.");
+            app.beginUndoGroup("Set Expression");
+            try {
+                item.prop.expression = textEdit.text;
+            } catch (e) {
+                alert("Error applying expression:\n" + e.toString());
             }
+            app.endUndoGroup();
         };
 
         win.layout.layout(true);
