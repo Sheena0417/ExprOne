@@ -1,7 +1,7 @@
 export function main(){
     var comp = app.project.activeItem;
     if (!(comp instanceof CompItem) || comp.selectedLayers.length !== 1) {
-        alert("HELLO");
+        alert("a");
         return;
     }
 

@@ -1,0 +1,25 @@
+{
+  "name": "expression_control",
+  "version": "1.0.0",
+  "main": "vite.config.js",
+"scripts": {
+  "build": "vite build",
+  "watch": "vite build --watch"
+},
+
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sheena0417/Expression_Control.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Sheena0417/Expression_Control/issues"
+  },
+  "homepage": "https://github.com/Sheena0417/Expression_Control#readme",
+  "description": "",
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}
