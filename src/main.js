@@ -4,5 +4,5 @@ import { getFirstLayer } from "./getFirstLayer.js";
 export function main() {
     layer = getFirstLayer()
     list = listVisibleExpressionProps(layer)
-    alert("表示中かつエクスプレッション可能なプロパティ:\n\n" + list.join("\n"));
+    // alert("表示中かつエクスプレッション可能なプロパティ:\n\n" + list.join("\n"));
 }
