@@ -30,6 +30,8 @@ export function buildUI(thisObj) {
     });
     exprInput.preferredSize = [300, 120];
 
+    var applyBtn = win.add("button", undefined, "Apply Expression");
+
     var currentProp = null;
 
     function syncDropdowns(changedDropdown) {
@@ -59,7 +61,6 @@ export function buildUI(thisObj) {
             }
         }
 
-        // 🔁 選択されたプロパティが記入済みリストに存在しない場合
         if (!matched && changedDropdown === propDropdown) {
             exprDropdown.selection = 0; // "-----"
         }
@@ -103,6 +104,23 @@ export function buildUI(thisObj) {
         var sel = exprDropdown.selection;
         if (!sel || !sel.prop) return;
         syncDropdowns(exprDropdown);
+    };
+
+    applyBtn.onClick = function () {
+        if (!currentProp || !currentProp.canSetExpression) {
+            alert("プロパティが選択されていないか、エクスプレッションを設定できません。");
+            return;
+        }
+
+        app.beginUndoGroup("Apply Expression");
+
+        try {
+            currentProp.expression = exprInput.text;
+        } catch (e) {
+            alert("エクスプレッションの適用に失敗しました:\n" + e.toString());
+        }
+
+        app.endUndoGroup();
     };
 
     win.layout.layout(true);
