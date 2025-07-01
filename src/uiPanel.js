@@ -1,5 +1,6 @@
 import { getFirstLayer } from "./getFirstLayer.js";
 import { listVisibleExpressionProps } from "./listVisibleExpressionProps.js";
+import { listExistingExpressions } from "./listExistingExpressions.js";
 
 export function buildUI(thisObj) {
     var win = (thisObj instanceof Panel)
@@ -16,6 +17,13 @@ export function buildUI(thisObj) {
     var propDropdown = topGroup.add("dropdownlist", undefined, []);
     propDropdown.preferredSize.width = 300;
 
+    var exprListGroup = win.add("group");
+    exprListGroup.orientation = "row";
+    exprListGroup.alignChildren = ["left", "center"];
+    exprListGroup.add("statictext", undefined, "Set Expressions:");
+    var exprDropdown = exprListGroup.add("dropdownlist", undefined, []);
+    exprDropdown.preferredSize.width = 300;
+
     var exprInput = win.add("edittext", undefined, "", {
         multiline: true,
         scrolling: true
@@ -24,21 +32,63 @@ export function buildUI(thisObj) {
 
     var currentProp = null;
 
+    function syncDropdowns(changedDropdown) {
+        var selected = changedDropdown.selection;
+        if (!selected || !selected.prop) {
+            exprInput.text = "";
+            currentProp = null;
+            return;
+        }
+
+        currentProp = selected.prop;
+
+        try {
+            exprInput.text = currentProp.expression || "";
+        } catch (e) {
+            exprInput.text = "// エラー: " + e.toString();
+        }
+
+        var otherDropdown = (changedDropdown === propDropdown) ? exprDropdown : propDropdown;
+
+        var matched = false;
+        for (var i = 0; i < otherDropdown.items.length; i++) {
+            if (otherDropdown.items[i].prop === currentProp) {
+                otherDropdown.selection = i;
+                matched = true;
+                break;
+            }
+        }
+
+        // 🔁 選択されたプロパティが記入済みリストに存在しない場合
+        if (!matched && changedDropdown === propDropdown) {
+            exprDropdown.selection = 0; // "-----"
+        }
+    }
+
     scanBtn.onClick = function () {
         var layer = getFirstLayer();
         if (!layer) return;
 
-        var list = listVisibleExpressionProps(layer);
-        propDropdown.removeAll();
+        var all = listVisibleExpressionProps(layer);
+        var existing = listExistingExpressions(all);
 
-        for (var i = 0; i < list.length; i++) {
-            var item = propDropdown.add("item", list[i].name);
-            item.prop = list[i].ref;
+        propDropdown.removeAll();
+        exprDropdown.removeAll();
+
+        for (var i = 0; i < all.length; i++) {
+            var item = propDropdown.add("item", all[i].name);
+            item.prop = all[i].ref;
+        }
+
+        exprDropdown.add("item", "-----").prop = null;
+        for (var j = 0; j < existing.length; j++) {
+            var item = exprDropdown.add("item", existing[j].name);
+            item.prop = existing[j].ref;
         }
 
         if (propDropdown.items.length > 0) {
             propDropdown.selection = 0;
-            propDropdown.onChange(); // 強制発火
+            syncDropdowns(propDropdown);
         } else {
             exprInput.text = "";
             currentProp = null;
@@ -46,19 +96,13 @@ export function buildUI(thisObj) {
     };
 
     propDropdown.onChange = function () {
-        var selection = propDropdown.selection;
-        if (!selection || !selection.prop) {
-            exprInput.text = "";
-            currentProp = null;
-            return;
-        }
+        syncDropdowns(propDropdown);
+    };
 
-        currentProp = selection.prop;
-        try {
-            exprInput.text = currentProp.expression || "";
-        } catch (e) {
-            exprInput.text = "// エラー：" + e.toString();
-        }
+    exprDropdown.onChange = function () {
+        var sel = exprDropdown.selection;
+        if (!sel || !sel.prop) return;
+        syncDropdowns(exprDropdown);
     };
 
     win.layout.layout(true);

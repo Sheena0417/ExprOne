@@ -19,7 +19,7 @@ export function listVisibleExpressionProps(selectedLayer) {
             } else {
                 try {
                     if (prop.canSetExpression) {
-                        result.push({ name: fullPath, ref: prop });
+                        result.push({ name: fullPath, ref: prop });  // ← ★ name + ref に変更
                     }
                 } catch (e) {}
             }
@@ -37,6 +37,7 @@ export function listVisibleExpressionProps(selectedLayer) {
         "ADBE Plane Options Group",
         "ADBE Extrsn Options Group"
     ];
+
     var materialMatch = "ADBE Material Options Group";
 
     for (var i = 0; i < groups.length; i++) {

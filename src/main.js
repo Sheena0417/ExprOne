@@ -10,9 +10,9 @@
 import { buildUI } from "./uiPanel.js";
 
 export function main(thisObj) {
-    const panel = buildUI(thisObj);
-    if (panel instanceof Window) {
-        panel.center();
-        panel.show();
+    const panel = buildUI(thisObj || this); // fallback 対応
+    if (panel instanceof Window || panel instanceof Panel) {
+        if (panel.center) panel.center();
+        if (panel.show) panel.show();
     }
 }
