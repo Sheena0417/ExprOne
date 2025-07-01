@@ -19,50 +19,87 @@ export function listVisibleExpressionProps(selectedLayer) {
             } else {
                 try {
                     if (prop.canSetExpression) {
-                        result.push({ name: fullPath, ref: prop });  // ← ★ name + ref に変更
+                        result.push({ name: fullPath, ref: prop });
                     }
                 } catch (e) {}
             }
         }
     }
 
-    var groups = [
-        { name: "ADBE Text Properties", label: "Text" },
-        { name: "ADBE Root Vectors Group", label: "Contents" },
-        { name: "ADBE Transform Group", label: "Transform" }
-    ];
+    // --- Text ---
+    var textGroup = selectedLayer.property("ADBE Text Properties");
+    if (textGroup) {
+        scanGroup(textGroup, "Text", false);
+    }
 
+    // --- Contents ---
+    var contentsGroup = selectedLayer.property("ADBE Root Vectors Group");
+    if (contentsGroup) {
+        scanGroup(contentsGroup, "Contents", false);
+    }
+
+    // --- Effects ---
+    var effects = selectedLayer.property("ADBE Effect Parade");
+    if (effects) {
+        for (var i = 1; i <= effects.numProperties; i++) {
+            var effect = effects.property(i);
+            if (!effect) continue;
+
+            var baseLabel = "Effects → " + effect.name;
+
+            for (var j = 1; j <= effect.numProperties; j++) {
+                var subProp = effect.property(j);
+                if (subProp && subProp.canSetExpression) {
+                    result.push({
+                        name: baseLabel + " → " + subProp.name,
+                        ref: subProp
+                    });
+                }
+            }
+        }
+    }
+
+    // --- Transform ---
+    var transformGroup = selectedLayer.property("ADBE Transform Group");
+    if (transformGroup) {
+        scanGroup(transformGroup, "Transform", false);
+    }
+
+    // --- Light Options ---
+    var lightOptions = selectedLayer.property("ADBE Light Options Group");
+    if (lightOptions) {
+        scanGroup(lightOptions, "Light Options", false);
+    }
+
+    // --- Camera Options ---
+    var cameraOptions = selectedLayer.property("ADBE Camera Options Group");
+    if (cameraOptions) {
+        scanGroup(cameraOptions, "Camera Options", false);
+    }
+
+    // --- Geometry / Material Options ---
     var geoMatchNames = [
         "ADBE Geometry Options Group",
         "ADBE Plane Options Group",
         "ADBE Extrsn Options Group"
     ];
 
-    var materialMatch = "ADBE Material Options Group";
-
-    for (var i = 0; i < groups.length; i++) {
-        var info = groups[i];
-        var group = selectedLayer.property(info.name);
-        if (group) {
-            scanGroup(group, info.label, false);
-        }
-    }
-
     if (selectedLayer.threeDLayer) {
-        for (var j = 0; j < geoMatchNames.length; j++) {
-            var g = selectedLayer.property(geoMatchNames[j]);
-            if (g) {
-                scanGroup(g, "Geometry Options", false);
+        for (var i = 0; i < geoMatchNames.length; i++) {
+            var group = selectedLayer.property(geoMatchNames[i]);
+            if (group) {
+                scanGroup(group, "Geometry Options", false);
                 break;
             }
         }
 
-        var mat = selectedLayer.property(materialMatch);
-        if (mat) {
-            scanGroup(mat, "Material Options", false);
+        var materialGroup = selectedLayer.property("ADBE Material Options Group");
+        if (materialGroup) {
+            scanGroup(materialGroup, "Material Options", false);
         }
     }
 
+    // --- Layer Styles ---
     var layerStyles = selectedLayer.property("ADBE Layer Styles");
     if (layerStyles) {
         for (var k = 1; k <= layerStyles.numProperties; k++) {

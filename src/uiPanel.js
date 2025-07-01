@@ -1,5 +1,6 @@
-import { getFirstLayer } from "./getFirstLayer.js";
+import { getSelectedLayers } from "./getSelectedLayers.js";
 import { listVisibleExpressionProps } from "./listVisibleExpressionProps.js";
+import { listCommonExpressionProps } from "./listCommonExpressionProps.js";
 import { listExistingExpressions } from "./listExistingExpressions.js";
 
 export function buildUI(thisObj) {
@@ -13,7 +14,7 @@ export function buildUI(thisObj) {
     win.margins = 10;
 
     var topGroup = win.add("group");
-    var scanBtn = topGroup.add("button", undefined, "This Layer");
+    var scanBtn = topGroup.add("button", undefined, "This Layer(s)");
     var propDropdown = topGroup.add("dropdownlist", undefined, []);
     propDropdown.preferredSize.width = 300;
 
@@ -24,15 +25,24 @@ export function buildUI(thisObj) {
     var exprDropdown = exprListGroup.add("dropdownlist", undefined, []);
     exprDropdown.preferredSize.width = 300;
 
+    // テキストエリア
     var exprInput = win.add("edittext", undefined, "", {
         multiline: true,
         scrolling: true
     });
-    exprInput.preferredSize = [300, 120];
+    exprInput.alignment = ["fill", "fill"];
+    exprInput.minimumSize = [300, 100];
 
-    var applyBtn = win.add("button", undefined, "Apply Expression");
+    // Apply ボタン（別グループで高さ固定）
+    var applyGroup = win.add("group");
+    applyGroup.alignment = ["fill", "top"];
+    applyGroup.maximumSize.height = 30;
+
+    var applyBtn = applyGroup.add("button", undefined, "Apply Expression");
+    applyBtn.alignment = ["fill", "top"];
 
     var currentProp = null;
+    var selectedLayers = [];
 
     function syncDropdowns(changedDropdown) {
         var selected = changedDropdown.selection;
@@ -67,10 +77,13 @@ export function buildUI(thisObj) {
     }
 
     scanBtn.onClick = function () {
-        var layer = getFirstLayer();
-        if (!layer) return;
+        selectedLayers = getSelectedLayers();
+        if (selectedLayers.length === 0) return;
 
-        var all = listVisibleExpressionProps(layer);
+        var all = (selectedLayers.length === 1)
+            ? listVisibleExpressionProps(selectedLayers[0])
+            : listCommonExpressionProps(selectedLayers);
+
         var existing = listExistingExpressions(all);
 
         propDropdown.removeAll();
@@ -112,16 +125,45 @@ export function buildUI(thisObj) {
             return;
         }
 
-        app.beginUndoGroup("Apply Expression");
+        if (selectedLayers.length === 0) {
+            alert("適用先のレイヤーが不明です。先に This Layer(s) ボタンを押してください。");
+            return;
+        }
 
-        try {
-            currentProp.expression = exprInput.text;
-        } catch (e) {
-            alert("エクスプレッションの適用に失敗しました:\n" + e.toString());
+        app.beginUndoGroup("Apply Expression to Layers");
+
+        for (var i = 0; i < selectedLayers.length; i++) {
+            var layer = selectedLayers[i];
+            var targetProp = findMatchingPropInLayer(layer, currentProp);
+
+            if (targetProp && targetProp.canSetExpression) {
+                try {
+                    targetProp.expression = exprInput.text;
+                } catch (e) {
+                    alert("エラー: " + e.toString());
+                }
+            }
         }
 
         app.endUndoGroup();
     };
+
+    function findMatchingPropInLayer(layer, sourceProp) {
+        var path = [];
+        var p = sourceProp;
+        while (p && p.parentProperty && !(p.parentProperty instanceof AVLayer)) {
+            path.unshift(p.name);
+            p = p.parentProperty;
+        }
+
+        var target = layer;
+        for (var i = 0; i < path.length; i++) {
+            target = target.property(path[i]);
+            if (!target) return null;
+        }
+
+        return target;
+    }
 
     win.layout.layout(true);
     win.onResizing = win.onResize = function () {
