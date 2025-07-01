@@ -35,7 +35,7 @@ export default {
   input: 'src/expressionControl.js',
   output: {
     file: 'dist/out.js',
-    format: 'es',
+    format: 'iife',
   },
   plugins: [
     watchSrcPlugin()

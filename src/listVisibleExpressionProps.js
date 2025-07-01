@@ -1,5 +1,4 @@
 export function listVisibleExpressionProps(selectedLayer) {
-
     var result = [];
 
     function scanGroup(group, path, isLayerStyles) {
@@ -20,58 +19,50 @@ export function listVisibleExpressionProps(selectedLayer) {
             } else {
                 try {
                     if (prop.canSetExpression) {
-                        result.push(fullPath);
+                        result.push({ name: fullPath, ref: prop });
                     }
                 } catch (e) {}
             }
         }
     }
 
-    // グループの定義（表示順を保証）
     var groups = [
-        { name: "ADBE Text Properties", label: "Text", cond: true },
-        { name: "ADBE Root Vectors Group", label: "Contents", cond: true },
-        { name: "ADBE Transform Group", label: "Transform", cond: true }
+        { name: "ADBE Text Properties", label: "Text" },
+        { name: "ADBE Root Vectors Group", label: "Contents" },
+        { name: "ADBE Transform Group", label: "Transform" }
     ];
 
-    // ジオメトリオプション（3Dレイヤーのみ）
     var geoMatchNames = [
-        "ADBE Geometry Options Group", // 通常の3Dレイヤー
-        "ADBE Plane Options Group",    // 平面レイヤー
-        "ADBE Extrsn Options Group"    // 押し出し3D用（テキストなど）
+        "ADBE Geometry Options Group",
+        "ADBE Plane Options Group",
+        "ADBE Extrsn Options Group"
     ];
-
     var materialMatch = "ADBE Material Options Group";
 
-    // 各グループをスキャン（順番維持）
     for (var i = 0; i < groups.length; i++) {
         var info = groups[i];
-        var group = layer.property(info.name);
+        var group = selectedLayer.property(info.name);
         if (group) {
             scanGroup(group, info.label, false);
         }
     }
 
-    // 3Dの場合だけ追加
-    if (layer.threeDLayer) {
-        var foundGeometry = false;
+    if (selectedLayer.threeDLayer) {
         for (var j = 0; j < geoMatchNames.length; j++) {
-            var g = layer.property(geoMatchNames[j]);
+            var g = selectedLayer.property(geoMatchNames[j]);
             if (g) {
                 scanGroup(g, "Geometry Options", false);
-                foundGeometry = true;
                 break;
             }
         }
 
-        var mat = layer.property(materialMatch);
+        var mat = selectedLayer.property(materialMatch);
         if (mat) {
             scanGroup(mat, "Material Options", false);
         }
     }
 
-    // レイヤースタイル（有効なものだけ）
-    var layerStyles = layer.property("ADBE Layer Styles");
+    var layerStyles = selectedLayer.property("ADBE Layer Styles");
     if (layerStyles) {
         for (var k = 1; k <= layerStyles.numProperties; k++) {
             var styleGroup = layerStyles.property(k);
@@ -81,9 +72,5 @@ export function listVisibleExpressionProps(selectedLayer) {
         }
     }
 
-    if (result.length > 0) {
-        alert("Expression-enabled properties:\n\n" + result.join("\n"));
-    } else {
-        alert("No expression-enabled properties found.");
-    }
-};
+    return result;
+}
