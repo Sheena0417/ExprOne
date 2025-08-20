@@ -13,12 +13,13 @@
       <Host Name="AEFT" Version="22.0" />
       <Host Name="AEFT" Version="23.0" />
       <Host Name="AEFT" Version="24.0" />
+      <Host Name="AEFT" Version="25.0" />
     </HostList>
     <LocaleList>
       <Locale Code="All" />
     </LocaleList>
     <RequiredRuntimeList>
-      <RequiredRuntime Name="CSXS" Version="11.0" />
+      <RequiredRuntime Name="CSXS" Version="12.0" />
     </RequiredRuntimeList>
   </ExecutionEnvironment>
   
