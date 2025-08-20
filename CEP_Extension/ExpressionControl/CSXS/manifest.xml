@@ -8,7 +8,7 @@
   
   <ExecutionEnvironment>
     <HostList>
-      <Host Name="AEFT" Version="[25.0,99.9]" />
+      <Host Name="AEFT" Version="[17.0,99.9]" />
     </HostList>
     <LocaleList>
       <Locale Code="All" />
