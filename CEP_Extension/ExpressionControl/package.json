@@ -1,0 +1,48 @@
+{
+  "name": "expression-control-cep",
+  "version": "1.0.0",
+  "description": "After Effects Expression Control Panel - CEP Extension",
+  "main": "index.html",
+  "scripts": {
+    "build": "node build.js",
+    "package": "npm run build && npm run zip",
+    "zip": "cd .. && zip -r ExpressionControl.zxp ExpressionControl/ -x '*.git*' '*node_modules*' '*.DS_Store*'",
+    "install-debug": "node install-debug.js",
+    "uninstall-debug": "node uninstall-debug.js",
+    "dev": "npm run install-debug && echo 'Debug mode installed. Restart After Effects.'",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "after-effects",
+    "expression",
+    "cep",
+    "adobe",
+    "automation",
+    "panel"
+  ],
+  "author": "Expression Control",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "fs-extra": "^11.1.1",
+    "path": "^0.12.7"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "."
+  },
+  "cep": {
+    "id": "com.expressioncontrol.panel",
+    "name": "Expression Control",
+    "version": "1.0.0",
+    "hosts": [
+      {
+        "name": "AEFT",
+        "version": "[17.0,99.9]"
+      }
+    ]
+  }
+}
