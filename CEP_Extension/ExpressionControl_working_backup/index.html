@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expression Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .control-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .control-section h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #FFE082;
+        }
+
+        .layer-info {
+            background: rgba(76, 175, 80, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .property-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .property-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .property-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .property-item:last-child {
+            border-bottom: none;
+        }
+
+        .expression-editor {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            min-height: 150px;
+        }
+
+        .editor-textarea {
+            width: 100%;
+            height: 150px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            padding: 15px;
+            resize: vertical;
+            outline: none;
+        }
+
+        .editor-textarea::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn.primary {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            border-color: #FF6B6B;
+        }
+
+        .btn.primary:hover {
+            background: linear-gradient(135deg, #FF5252, #FF7979);
+        }
+
+        .status-bar {
+            background: rgba(0,0,0,0.2);
+            padding: 10px 20px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .success-message {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid #4CAF50;
+            color: #C8E6C9;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid #F44336;
+            color: #FFCDD2;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .welcome-message h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: #FFE082;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Expression Control</h1>
+    </div>
+
+    <div class="main-content">
+        <div class="control-section">
+            <h2>📋 レイヤー情報</h2>
+            <div class="layer-info">
+                <div id="layerInfo">レイヤーを選択してください</div>
+            </div>
+            <button class="btn" onclick="refreshLayers()">🔄 レイヤー更新</button>
+        </div>
+
+        <div class="control-section">
+            <h2>🎛️ プロパティリスト</h2>
+            <div class="property-list" id="propertyList">
+                <div class="welcome-message">
+                    <h3>🚀 Expression Control V2</h3>
+                    <p>LottieFiles成功パターンを適用した新バージョンです</p>
+                    <p class="pulse">After Effectsでレイヤーを選択してください</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h2>📝 エクスプレッションエディター</h2>
+            <div class="expression-editor">
+                <textarea 
+                    class="editor-textarea" 
+                    id="expressionEditor"
+                    placeholder="// エクスプレッションをここに入力してください
+// 例: wiggle(2, 50)
+// 例: time * 360"
+                ></textarea>
+            </div>
+            <div class="button-group">
+                <button class="btn" onclick="formatExpression()">🎨 フォーマット</button>
+                <button class="btn" onclick="validateExpression()">✅ 検証</button>
+                <button class="btn" onclick="clearExpression()">🗑️ クリア</button>
+                <button class="btn primary" onclick="applyExpression()">🚀 適用</button>
+            </div>
+            <div class="success-message" id="successMessage"></div>
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span id="statusText">Expression Control V2 - Ready</span>
+    </div>
+
+    <!-- CEP Communication Library -->
+    <script src="js/CSInterface.js"></script>
+    
+    <script>
+        // CEP Interface
+        var csInterface;
+        var selectedLayers = [];
+        var currentProperties = [];
+        var currentProperty = null;
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // CSInterface初期化
+            if (typeof CSInterface !== 'undefined') {
+                csInterface = new CSInterface();
+                
+                // ExtendScriptファイルをロード
+                var extensionRoot = csInterface.getSystemPath(SystemPath.EXTENSION);
+                var jsxFile = extensionRoot + '/jsx/expressionControlAPI.jsx';
+                
+                csInterface.evalScript('$.evalFile("' + jsxFile + '")', function(result) {
+                    console.log('ExtendScript loaded:', result);
+                    document.getElementById('statusText').textContent = 'Expression Control V2 - ExtendScript準備完了';
+                });
+            } else {
+                // CSInterfaceが利用できない場合（開発時など）
+                console.warn('CSInterface not available - running in mock mode');
+                document.getElementById('statusText').textContent = 'Expression Control V2 - Mock Mode';
+            }
+        });
+
+        // 実際のAfter Effects連携関数
+        function refreshLayers() {
+            document.getElementById('layerInfo').textContent = '🔄 レイヤー情報を更新中...';
+            
+            if (!csInterface) {
+                // Mock mode
+                showMessage('Mock Mode: レイヤー情報を更新しました', 'success');
+                updateMockPropertyList();
+                document.getElementById('layerInfo').textContent = '✅ Mock: 選択されたレイヤー';
+                return;
+            }
+            
+            // 実際のAfter Effectsからレイヤー情報を取得
+            csInterface.evalScript('ExpressionControlAPI.getSelectedLayers()', function(result) {
+                try {
+                    var data = JSON.parse(result);
+                    
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                        document.getElementById('layerInfo').textContent = '❌ エラー: ' + data.error;
+                        return;
+                    }
+                    
+                    selectedLayers = data.layers;
+                    updateLayerInfo(data);
+                    loadProperties();
+                    
+                } catch (e) {
+                    showMessage('レイヤー情報の取得に失敗しました', 'error');
+                    console.error('Error parsing layer data:', e);
+                }
+            });
+        }
+
+        function updateLayerInfo(data) {
+            var layerInfo = document.getElementById('layerInfo');
+            if (data.count === 1) {
+                layerInfo.textContent = `✅ レイヤー: ${data.layers[0].name}`;
+            } else {
+                layerInfo.textContent = `✅ 選択レイヤー: ${data.count}個`;
+            }
+        }
+
+        function loadProperties() {
+            if (selectedLayers.length === 0) {
+                return;
+            }
+            
+            var layerIndices = selectedLayers.map(function(layer) { return layer.index; });
+            var scriptCall;
+            
+            if (layerIndices.length === 1) {
+                scriptCall = `ExpressionControlAPI.listVisibleExpressionProps(${layerIndices[0]})`;
+            } else {
+                scriptCall = `ExpressionControlAPI.listCommonExpressionProps([${layerIndices.join(',')}])`;
+            }
+            
+            csInterface.evalScript(scriptCall, function(result) {
+                try {
+                    var data = JSON.parse(result);
+                    
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                        return;
+                    }
+                    
+                    currentProperties = data.properties;
+                    updatePropertyList();
+                    showMessage(`${data.properties.length}個のプロパティを読み込みました`, 'success');
+                    
+                } catch (e) {
+                    showMessage('プロパティ情報の取得に失敗しました', 'error');
+                    console.error('Error parsing properties:', e);
+                }
+            });
+        }
+
+        function updatePropertyList() {
+            var propertyList = document.getElementById('propertyList');
+            propertyList.innerHTML = '';
+            
+            if (currentProperties.length === 0) {
+                propertyList.innerHTML = '<div class="welcome-message"><p>プロパティが見つかりませんでした</p></div>';
+                return;
+            }
+            
+            currentProperties.forEach(function(prop, index) {
+                var propertyItem = document.createElement('div');
+                propertyItem.className = 'property-item';
+                propertyItem.onclick = function() { selectProperty(index); };
+                
+                var hasExpr = prop.hasExpression ? ' 🔧' : '';
+                propertyItem.innerHTML = `${prop.name}${hasExpr}`;
+                
+                if (prop.hasExpression) {
+                    propertyItem.style.fontWeight = 'bold';
+                    propertyItem.style.borderLeft = '3px solid #4CAF50';
+                }
+                
+                propertyList.appendChild(propertyItem);
+            });
+        }
+
+        function updateMockPropertyList() {
+            // Mock mode用
+            const propertyList = document.getElementById('propertyList');
+            propertyList.innerHTML = `
+                <div class="property-item" onclick="selectMockProperty('Position')">📍 Transform → Position</div>
+                <div class="property-item" onclick="selectMockProperty('Scale')">📏 Transform → Scale</div>
+                <div class="property-item" onclick="selectMockProperty('Rotation')">🔄 Transform → Rotation</div>
+                <div class="property-item" onclick="selectMockProperty('Opacity')">👁️ Transform → Opacity</div>
+            `;
+        }
+
+        function selectProperty(index) {
+            if (currentProperties[index]) {
+                currentProperty = currentProperties[index];
+                document.getElementById('statusText').textContent = `プロパティ選択: ${currentProperty.name}`;
+                
+                // エディターに現在のエクスプレッションを表示
+                var editor = document.getElementById('expressionEditor');
+                editor.value = currentProperty.expression || '';
+                
+                showMessage(`${currentProperty.name} を選択しました`, 'success');
+            }
+        }
+
+        function selectMockProperty(propertyName) {
+            document.getElementById('statusText').textContent = `Mock プロパティ選択: ${propertyName}`;
+            showMessage(`Mock: ${propertyName}プロパティを選択しました`, 'success');
+        }
+
+        function formatExpression() {
+            var editor = document.getElementById('expressionEditor');
+            var value = editor.value;
+            
+            // 簡単なフォーマット
+            value = value.replace(/;/g, ';\n').replace(/\{/g, '{\n').replace(/\}/g, '\n}');
+            editor.value = value;
+            
+            showMessage('エクスプレッションをフォーマットしました', 'success');
+        }
+
+        function validateExpression() {
+            var expression = document.getElementById('expressionEditor').value;
+            
+            if (!expression || expression.trim() === '') {
+                showMessage('エクスプレッションが空です', 'error');
+                return;
+            }
+            
+            if (!csInterface) {
+                // Mock validation
+                if (expression.includes('wiggle') || expression.includes('time') || expression.includes('value')) {
+                    showMessage('✅ Mock: エクスプレッションは有効のようです', 'success');
+                } else {
+                    showMessage('⚠️ Mock: 一般的なAfter Effectsの関数が見つかりません', 'error');
+                }
+                return;
+            }
+            
+            // 実際の検証
+            csInterface.evalScript(`ExpressionControlAPI.validateExpression(${JSON.stringify(expression)})`, function(result) {
+                try {
+                    var data = JSON.parse(result);
+                    
+                    if (data.success && data.valid) {
+                        showMessage('✅ エクスプレッションは有効です', 'success');
+                    } else if (data.errors && data.errors.length > 0) {
+                        showMessage(`⚠️ 問題: ${data.errors.join(', ')}`, 'error');
+                    } else {
+                        showMessage('✅ 基本的な構文は正しいようです', 'success');
+                    }
+                    
+                } catch (e) {
+                    showMessage('検証中にエラーが発生しました', 'error');
+                    console.error('Validation error:', e);
+                }
+            });
+        }
+
+        function clearExpression() {
+            document.getElementById('expressionEditor').value = '';
+            showMessage('エクスプレッションをクリアしました', 'success');
+        }
+
+        function applyExpression() {
+            var expression = document.getElementById('expressionEditor').value;
+            
+            if (!expression || expression.trim() === '') {
+                showMessage('エクスプレッションが空です', 'error');
+                return;
+            }
+            
+            if (!currentProperty) {
+                showMessage('プロパティが選択されていません', 'error');
+                return;
+            }
+            
+            if (selectedLayers.length === 0) {
+                showMessage('レイヤーが選択されていません', 'error');
+                return;
+            }
+            
+            if (!csInterface) {
+                showMessage('🚀 Mock: エクスプレッションを適用しました！', 'success');
+                document.getElementById('statusText').textContent = 'Mock: エクスプレッション適用完了';
+                return;
+            }
+            
+            // 実際のエクスプレッション適用
+            var layerIndices = selectedLayers.map(function(layer) { return layer.index; });
+            var propertyPath = currentProperty.path;
+            
+            var scriptCall = `ExpressionControlAPI.applyExpression([${layerIndices.join(',')}], ${JSON.stringify(propertyPath)}, ${JSON.stringify(expression)})`;
+            
+            csInterface.evalScript(scriptCall, function(result) {
+                try {
+                    var data = JSON.parse(result);
+                    
+                    if (data.success) {
+                        var successCount = 0;
+                        var errorCount = 0;
+                        
+                        for (var i = 0; i < data.results.length; i++) {
+                            if (data.results[i].success) {
+                                successCount++;
+                            } else {
+                                errorCount++;
+                            }
+                        }
+                        
+                        if (errorCount === 0) {
+                            showMessage(`🚀 ${successCount}個のレイヤーにエクスプレッションを適用しました`, 'success');
+                        } else {
+                            showMessage(`⚠️ ${successCount}個成功、${errorCount}個エラー`, 'error');
+                        }
+                        
+                        // プロパティリストを更新
+                        loadProperties();
+                        document.getElementById('statusText').textContent = 'エクスプレッション適用完了';
+                    } else {
+                        showMessage('エクスプレッションの適用に失敗しました: ' + data.error, 'error');
+                    }
+                    
+                } catch (e) {
+                    showMessage('エクスプレッション適用中にエラーが発生しました', 'error');
+                    console.error('Apply error:', e);
+                }
+            });
+        }
+
+        function showMessage(message, type) {
+            const successMsg = document.getElementById('successMessage');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            // メッセージをリセット
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+            
+            if (type === 'success') {
+                successMsg.textContent = message;
+                successMsg.style.display = 'block';
+                setTimeout(() => successMsg.style.display = 'none', 3000);
+            } else {
+                errorMsg.textContent = message;
+                errorMsg.style.display = 'block';
+                setTimeout(() => errorMsg.style.display = 'none', 3000);
+            }
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('statusText').textContent = 'Expression Control V2 - 準備完了';
+        });
+    </script>
+</body>
+</html>
