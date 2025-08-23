@@ -180,8 +180,24 @@ function scanLayerProperties(layer, result) {
         scanGroup(cameraOptions, "Camera Options", false);
     }
 
-    // Material Options (3D layers)
+    // Geometry Options + Material Options (3D layers)
     if (layer.threeDLayer) {
+        // Geometry Options - 前回の成功した形式に合わせて追加
+        var geoMatchNames = [
+            "ADBE Geometry Options Group",
+            "ADBE Plane Options Group",
+            "ADBE Extrsn Options Group"
+        ];
+
+        for (var i = 0; i < geoMatchNames.length; i++) {
+            var group = layer.property(geoMatchNames[i]);
+            if (group) {
+                scanGroup(group, "Geometry Options", false);
+                break;
+            }
+        }
+
+        // Material Options
         var materialGroup = layer.property("ADBE Material Options Group");
         if (materialGroup) {
             scanGroup(materialGroup, "Material Options", false);
