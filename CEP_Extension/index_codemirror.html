@@ -281,20 +281,9 @@
         <!-- エクスプレッション記入欄 -->
         <div class="section">
             <label>エクスプレッション:</label>
-            <textarea id="expressionEditor" style="
-                width: 100%;
-                height: 150px;
-                padding: 10px;
-                background: #1a1a1a;
-                color: #ffffff;
-                border: 1px solid #555;
-                border-radius: 3px;
-                font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-                font-size: 13px;
-                line-height: 1.4;
-                resize: vertical;
-                box-sizing: border-box;
-            " placeholder="エクスプレッションを入力..."></textarea>
+            <div id="editorContainer"></div>
+            <!-- 後方互換性のために隠しtextareaを保持 -->
+            <textarea id="expressionEditor" style="display: none;"></textarea>
         </div>
 
         <!-- Apply ボタン -->
@@ -414,268 +403,77 @@
             }
         }
 
-        // 不要な関数を削除（シンプルなエディターに変更）
+        // フォールバック: 通常のtextareaを表示
+        function showFallbackTextarea() {
+            console.log('Using fallback textarea editor');
 
-        // Enhanced Editor機能は削除（シンプルなエディターに変更）
+            var container = document.getElementById('editorContainer');
+            container.style.display = 'none';
 
-        // エディターのヘルパー関数
-        function setEditorValue(value) {
             var textarea = document.getElementById('expressionEditor');
-            if (textarea) {
-                textarea.value = value || '';
-            }
-        }
-
-        function getEditorValue() {
-            var textarea = document.getElementById('expressionEditor');
-            return textarea ? textarea.value : '';
-        }
-
-        // Enhanced Basic Editor初期化
-        function initializeBasicEditor() {
-            var textarea = document.getElementById('expressionEditor');
-            if (!textarea) return;
-
-            // AE Expression キーワード
-            var aeKeywords = [
-                'thisComp', 'thisLayer', 'time', 'value', 'wiggle', 'ease', 'linear',
-                'position', 'scale', 'rotation', 'opacity', 'anchorPoint',
-                'transform', 'width', 'height', 'index', 'name', 'parent',
-                'valueAtTime', 'velocityAtTime', 'key', 'keyTime', 'keyValue'
-            ];
-
-            // エラー表示エリアを作成
-            var errorDiv = document.createElement('div');
-            errorDiv.id = 'expressionError';
-            errorDiv.style.cssText = `
-                color: #ff6b6b;
-                font-size: 11px;
-                margin-top: 5px;
-                padding: 5px;
-                background: #2a1f1f;
-                border-radius: 3px;
-                display: none;
-            `;
-            textarea.parentNode.appendChild(errorDiv);
-
-            // 予測候補エリアを作成
-            var suggestionsDiv = document.createElement('div');
-            suggestionsDiv.id = 'suggestions';
-            suggestionsDiv.style.cssText = `
-                position: absolute;
-                background: #2a2a2a;
+            textarea.style.display = 'block';
+            textarea.style.cssText = `
+                width: 100%;
+                height: 150px;
+                padding: 10px;
+                background: #1a1a1a;
+                color: #ffffff;
                 border: 1px solid #555;
                 border-radius: 3px;
-                max-height: 150px;
-                overflow-y: auto;
-                z-index: 1000;
-                display: none;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-                min-width: 200px;
-                margin-top: 2px;
+                font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+                font-size: 13px;
+                line-height: 1.4;
+                resize: vertical;
+                box-sizing: border-box;
             `;
-            textarea.parentNode.appendChild(suggestionsDiv);
+            textarea.placeholder = 'エクスプレッションを入力... (Fallback Editor)';
 
-            // リアルタイム機能
-            var currentSuggestions = [];
-            var selectedSuggestionIndex = -1;
-
-            // エラーチェック関数
-            function checkErrors() {
-                var text = textarea.value;
-                var errors = [];
-
-                // 括弧バランスチェック
-                var openParens = (text.match(/\(/g) || []).length;
-                var closeParens = (text.match(/\)/g) || []).length;
-                var openBrackets = (text.match(/\[/g) || []).length;
-                var closeBrackets = (text.match(/\]/g) || []).length;
-
-                if (openParens !== closeParens) errors.push('括弧 () が合いません');
-                if (openBrackets !== closeBrackets) errors.push('角括弧 [] が合いません');
-
-                var errorDiv = document.getElementById('expressionError');
-                if (errors.length > 0) {
-                    errorDiv.innerHTML = '⚠️ ' + errors.join(', ');
-                    errorDiv.style.display = 'block';
-                } else {
-                    errorDiv.style.display = 'none';
-                }
-            }
-
-            // カーソル位置を取得する関数
-            function getCursorPosition() {
-                var cursorPos = textarea.selectionStart;
-                var textBefore = textarea.value.substring(0, cursorPos);
-                var lines = textBefore.split('\n');
-                var currentLine = lines.length - 1;
-                var currentColumn = lines[lines.length - 1].length;
-
-                // テキストエリアの位置とサイズを取得
-                var textareaRect = textarea.getBoundingClientRect();
-                var style = window.getComputedStyle(textarea);
-                var padding = parseInt(style.paddingLeft);
-                var lineHeight = parseInt(style.lineHeight) || 18;
-                var fontSize = parseInt(style.fontSize) || 13;
-
-                // 文字幅を推定（等幅フォントを前提）
-                var charWidth = fontSize * 0.6;
-
-                // スクロール位置を考慮してカーソルの画面上の位置を計算
-                var x = textareaRect.left + padding + (currentColumn * charWidth);
-                var y = textareaRect.top + padding + (currentLine * lineHeight) - textarea.scrollTop;
-
-                return { x: x, y: y, lineHeight: lineHeight };
-            }
-
-            // 予測候補表示
-            function showSuggestions() {
-                var cursorPos = textarea.selectionStart;
-                var textBefore = textarea.value.substring(0, cursorPos);
-                var words = textBefore.split(/[\s\(\)\[\]{}.,;]+/);
-                var currentWord = words[words.length - 1] || '';
-
-                if (currentWord.length < 2) {
-                    suggestionsDiv.style.display = 'none';
-                    return;
-                }
-
-                currentSuggestions = aeKeywords.filter(keyword =>
-                    keyword.toLowerCase().startsWith(currentWord.toLowerCase()) &&
-                    keyword !== currentWord
-                );
-
-                if (currentSuggestions.length === 0) {
-                    suggestionsDiv.style.display = 'none';
-                    return;
-                }
-
-                var html = currentSuggestions.slice(0, 8).map((suggestion, index) =>
-                    `<div class="suggestion-item" style="padding: 6px 10px; cursor: pointer; font-family: monospace; border-bottom: 1px solid #3a3a3a; ${index === selectedSuggestionIndex ? 'background: #4a4a4a;' : ''}" data-index="${index}" onclick="insertSuggestion('${suggestion}')">${suggestion}</div>`
-                ).join('');
-
-                suggestionsDiv.innerHTML = html;
-
-                // カーソル位置を取得して候補の位置を調整
-                var cursorPosition = getCursorPosition();
-                var suggestionsHeight = Math.min(currentSuggestions.length * 28, 150); // 項目の高さ×個数
-
-                // 画面サイズを取得
-                var windowHeight = window.innerHeight;
-                var windowWidth = window.innerWidth;
-                var suggestionsWidth = 200; // 候補ウィンドウの幅
-
-                // 画面の下部に近い場合は上に表示、そうでなければ下に表示
-                var showAbove = (cursorPosition.y + suggestionsHeight + 50) > windowHeight;
-
-                // 画面の右端からはみ出さないように横位置を調整
-                var leftPosition = cursorPosition.x;
-                if (leftPosition + suggestionsWidth > windowWidth) {
-                    leftPosition = windowWidth - suggestionsWidth - 10;
-                }
-                if (leftPosition < 10) {
-                    leftPosition = 10;
-                }
-
-                suggestionsDiv.style.position = 'fixed';
-                suggestionsDiv.style.left = leftPosition + 'px';
-
-                if (showAbove) {
-                    // カーソルの上に表示
-                    suggestionsDiv.style.top = (cursorPosition.y - suggestionsHeight - 5) + 'px';
-                } else {
-                    // カーソルの下に表示（デフォルト）
-                    suggestionsDiv.style.top = (cursorPosition.y + cursorPosition.lineHeight + 5) + 'px';
-                }
-
-                suggestionsDiv.style.display = 'block';
-            }
-
-            // 候補挿入
-            window.insertSuggestion = function (suggestion) {
-                var cursorPos = textarea.selectionStart;
-                var textBefore = textarea.value.substring(0, cursorPos);
-                var words = textBefore.split(/[\s\(\)\[\]{}.,;]+/);
-                var currentWord = words[words.length - 1] || '';
-                var replaceStart = cursorPos - currentWord.length;
-
-                textarea.value = textarea.value.substring(0, replaceStart) + suggestion + textarea.value.substring(cursorPos);
-                textarea.selectionStart = textarea.selectionEnd = replaceStart + suggestion.length;
-                suggestionsDiv.style.display = 'none';
-                textarea.focus();
-            };
-
-            // イベントリスナー
-            textarea.addEventListener('input', function () {
-                checkErrors();
-                showSuggestions();
-            });
-
-            // スクロール時に候補位置を更新
-            textarea.addEventListener('scroll', function () {
-                if (suggestionsDiv.style.display === 'block') {
-                    showSuggestions();
-                }
-            });
-
+            // 基本的なタブ機能を追加
             textarea.addEventListener('keydown', function (e) {
-                // Tab インデント
                 if (e.key === 'Tab') {
                     e.preventDefault();
                     var start = this.selectionStart;
                     var end = this.selectionEnd;
                     this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
                     this.selectionStart = this.selectionEnd = start + 2;
-                    return;
                 }
+            });
 
-                // Ctrl+Space で候補表示
-                if (e.ctrlKey && e.key === ' ') {
-                    e.preventDefault();
-                    showSuggestions();
-                    return;
-                }
+            // ステータス更新
+            var statusDiv = document.createElement('div');
+            statusDiv.style.cssText = 'color: orange; font-size: 11px; margin-top: 5px;';
+            statusDiv.textContent = 'CodeMirrorが利用できません - 基本エディターで動作中';
+            container.parentNode.appendChild(statusDiv);
+        }
 
-                // Escape で候補を隠す
-                if (e.key === 'Escape') {
-                    suggestionsDiv.style.display = 'none';
-                    selectedSuggestionIndex = -1;
-                    return;
-                }
-
-                // 候補選択のナビゲーション
-                if (suggestionsDiv.style.display === 'block') {
-                    if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, currentSuggestions.length - 1);
-                        showSuggestions();
-                    } else if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
-                        showSuggestions();
-                    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
-                        e.preventDefault();
-                        insertSuggestion(currentSuggestions[selectedSuggestionIndex]);
+        // エディターのヘルパー関数
+        function setEditorValue(value) {
+            if (codeMirrorEditor) {
+                codeMirrorEditor.dispatch({
+                    changes: {
+                        from: 0,
+                        to: codeMirrorEditor.state.doc.length,
+                        insert: value || ''
                     }
-                }
-            });
+                });
+            }
+            // 常に隠しtextareaも更新
+            document.getElementById('expressionEditor').value = value || '';
+        }
 
-            // 外部クリックで候補を隠す
-            document.addEventListener('click', function (e) {
-                if (!e.target.closest('#suggestions') && e.target !== textarea) {
-                    suggestionsDiv.style.display = 'none';
-                    selectedSuggestionIndex = -1;
-                }
-            });
-
-            console.log('Enhanced Basic Editor initialized successfully');
-            document.getElementById('statusText').textContent = 'Expression Control - Enhanced Editor Ready ✨';
+        function getEditorValue() {
+            if (codeMirrorEditor) {
+                return codeMirrorEditor.state.doc.toString();
+            }
+            return document.getElementById('expressionEditor').value;
         }
 
         // 初期化
         document.addEventListener('DOMContentLoaded', function () {
-            // Basic Editorを初期化
-            initializeBasicEditor();
+            // CodeMirror Editorを初期化
+            setTimeout(() => {
+                initializeCodeMirrorEditor();
+            }, 100);
 
             // CSInterface初期化
             if (typeof CSInterface !== 'undefined') {

@@ -6,14 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expression Control</title>
 
-    <!-- CodeMirror 6 -->
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@6.0.1/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/view@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/state@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/language@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/lint@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.0.0/dist/index.js"></script>
+    <!-- Monaco Editor - Alternative CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
 
     <style>
         body {
@@ -27,7 +21,6 @@
 
         .container {
             max-width: 100%;
-            padding-bottom: 30px;
         }
 
         .header {
@@ -45,8 +38,6 @@
 
         .section {
             margin-bottom: 15px;
-            position: relative;
-            z-index: 10;
         }
 
         .section label {
@@ -74,11 +65,41 @@
             background: #45a049;
         }
 
+        .dropdown {
+            width: 100%;
+            padding: 8px;
+            background: #3a3a3a;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 3px;
+            font-size: 12px;
+            position: relative;
+            z-index: 1000;
+            max-height: 200px;
+            /* 高さ制限 */
+            overflow-y: auto;
+            /* スクロール有効 */
+        }
+
+        .dropdown:focus {
+            outline: none;
+            border-color: #4CAF50;
+            z-index: 1001;
+        }
+
         /* セクション間のスペースを確保 */
+        .section {
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* ドロップダウンが開いている時に他の要素より前面に */
         .section:focus-within {
             z-index: 99998;
         }
 
+        /* ドロップダウンが開いているセクションを最前面に */
         .section.dropdown-open {
             z-index: 99998;
         }
@@ -130,8 +151,10 @@
             max-height: 200px;
             overflow-y: auto;
             z-index: 99999;
+            /* 非常に高い値に設定 */
             display: none;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            /* 影を追加して前面感を強調 */
         }
 
         .dropdown-list.show {
@@ -158,15 +181,57 @@
             color: white;
         }
 
-        /* CodeMirror Editor container */
-        #editorContainer {
+        .expression-input {
             width: 100%;
+            height: 120px;
+            padding: 10px;
+            background: #1a1a1a;
+            color: #ffffff;
+            border: 1px solid #555;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        .expression-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        /* Monaco Editor container */
+        #monacoContainer {
+            width: 100%;
+            height: 150px;
             min-height: 150px;
             border: 1px solid #555;
             border-radius: 3px;
             background: #1a1a1a;
             position: relative;
             box-sizing: border-box;
+        }
+
+        /* Enhanced Editor styles */
+        .enhanced-editor {
+            width: 100%;
+            height: 160px;
+            padding: 10px;
+            background: #1a1a1a;
+            color: #ffffff;
+            border: 1px solid #555;
+            border-radius: 3px;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            resize: vertical;
+            tab-size: 2;
+            box-sizing: border-box;
+        }
+
+        .enhanced-editor:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
         }
 
         .apply-button {
@@ -234,6 +299,14 @@
             font-size: 11px;
             color: #888;
             z-index: 100;
+            /* ドロップダウンより低い値 */
+        }
+
+        /* コンテナの下部マージンを追加してステータスバーと重ならないように */
+        .container {
+            max-width: 100%;
+            padding-bottom: 30px;
+            /* ステータスバー分のスペース */
         }
     </style>
 </head>
@@ -281,20 +354,9 @@
         <!-- エクスプレッション記入欄 -->
         <div class="section">
             <label>エクスプレッション:</label>
-            <textarea id="expressionEditor" style="
-                width: 100%;
-                height: 150px;
-                padding: 10px;
-                background: #1a1a1a;
-                color: #ffffff;
-                border: 1px solid #555;
-                border-radius: 3px;
-                font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-                font-size: 13px;
-                line-height: 1.4;
-                resize: vertical;
-                box-sizing: border-box;
-            " placeholder="エクスプレッションを入力..."></textarea>
+            <div id="monacoContainer"></div>
+            <!-- 後方互換性のために隠しtextareaを保持 -->
+            <textarea id="expressionEditor" style="display: none;"></textarea>
         </div>
 
         <!-- Apply ボタン -->
@@ -323,361 +385,299 @@
         var allProperties = [];
         var currentProperty = null;
 
-        // CodeMirror Editor変数
-        let codeMirrorEditor = null;
+        // エディター変数
+        let monacoEditor = null;
+        let enhancedEditor = null;
 
-        // After Effects Expression Keywords
-        const AE_EXPRESSION_KEYWORDS = [
-            'thisComp', 'thisLayer', 'time', 'value', 'wiggle', 'ease', 'linear',
-            'key', 'marker', 'effect', 'transform', 'position', 'scale', 'rotation',
-            'opacity', 'anchorPoint', 'width', 'height', 'index', 'name', 'parent',
-            'source', 'inPoint', 'outPoint', 'startTime', 'duration', 'frameDuration',
-            'comp', 'layer', 'property', 'propertyGroup', 'numKeys', 'keyTime',
-            'keyValue', 'velocityAtTime', 'speedAtTime', 'temporalEase', 'spatialTangent',
-            'isSpatial', 'canSetExpression', 'expression', 'expressionEnabled',
-            'valueAtTime', 'nearestKeyIndex', 'keyIndex', 'numProperties', 'propertyIndex',
-            'propertyName', 'matchName', 'isEffect', 'isLayer', 'active', 'enabled',
-            'hasParent', 'stretch', 'timeRemap', 'blendingMode', 'trackMatteType',
-            'hasTrackMatte', 'isTrackMatte', 'preserveTransparency', 'quality',
-            'motionBlur', 'frameBlending', 'threeDLayer', 'environmentLayer',
-            'collapseTransformation', 'frameRate', 'pixelAspect', 'shutterAngle',
-            'shutterPhase', 'workAreaStart', 'workAreaDuration', 'numLayers',
-            'activeCamera', 'displayStartTime', 'footageMissing', 'bgColor',
-            'cameraOption', 'lightOption'
-        ];
-
-        // CodeMirror Editor初期化
-        function initializeCodeMirrorEditor() {
+        // Monaco Editorの初期化
+        function initializeMonacoEditor() {
             try {
-                console.log('Initializing CodeMirror Editor...');
+                console.log('Starting Monaco Editor initialization...');
 
-                // CodeMirrorがロードされているかチェック
-                if (typeof CodeMirror === 'undefined') {
-                    throw new Error('CodeMirror not loaded');
-                }
-
-                // After Effects Expression用のオートコンプリート
-                const aeExpressionCompletion = CodeMirror.autocomplete.completeFromList(
-                    AE_EXPRESSION_KEYWORDS.map(word => ({
-                        label: word,
-                        type: 'keyword',
-                        info: `After Effects Expression: ${word}`
-                    }))
-                );
-
-                // エディター設定
-                const extensions = [
-                    CodeMirror.basicSetup,
-                    CodeMirror.javascript(),
-                    CodeMirror.oneDark,
-                    CodeMirror.autocompletion({
-                        override: [aeExpressionCompletion]
-                    }),
-                    CodeMirror.EditorView.updateListener.of((update) => {
-                        if (update.docChanged) {
-                            // 隠しtextareaと同期
-                            document.getElementById('expressionEditor').value = codeMirrorEditor.state.doc.toString();
-                        }
-                    }),
-                    CodeMirror.EditorView.theme({
-                        '&': {
-                            height: '150px',
-                            fontSize: '13px'
-                        },
-                        '.cm-content': {
-                            padding: '10px',
-                            minHeight: '150px'
-                        },
-                        '.cm-editor': {
-                            borderRadius: '3px'
-                        },
-                        '.cm-scroller': {
-                            fontFamily: 'Courier New, Monaco, Menlo, monospace'
-                        }
-                    })
-                ];
-
-                // エディター作成
-                codeMirrorEditor = new CodeMirror.EditorView({
-                    doc: '',
-                    extensions: extensions,
-                    parent: document.getElementById('editorContainer')
+                // Monaco EditorのCDN配信パスを設定
+                require.config({
+                    paths: {
+                        'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs'
+                    }
                 });
 
-                console.log('CodeMirror Editor initialized successfully');
-                return true;
+                require(['vs/editor/editor.main'], function () {
+                    console.log('Monaco Editor loaded, creating editor...');
+                    // After Effects Expression用のカスタム言語設定
+                    monaco.languages.register({ id: 'ae-expression' });
 
+                    // シンタックスハイライト設定
+                    monaco.languages.setMonarchTokensProvider('ae-expression', {
+                        tokenizer: {
+                            root: [
+                                [/\b(thisComp|thisLayer|time|value|wiggle|ease|linear|key|marker|effect|transform|position|scale|rotation|opacity|anchorPoint|width|height|index|name|parent|source|inPoint|outPoint|startTime|duration|frameDuration|comp|layer|property|propertyGroup|numKeys|keyTime|keyValue|velocityAtTime|speedAtTime|temporalEase|spatialTangent|isSpatial|canSetExpression|expression|expressionEnabled|valueAtTime|nearestKeyIndex|keyIndex|keyTime|numProperties|propertyIndex|propertyName|matchName|isEffect|isLayer|active|enabled|hasParent|inPoint|outPoint|startTime|stretch|timeRemap|blendingMode|trackMatteType|hasTrackMatte|isTrackMatte|preserveTransparency|quality|motionBlur|frameBlending|threeDLayer|environmentLayer|collapseTransformation|frameRate|pixelAspect|shutterAngle|shutterPhase|workAreaStart|workAreaDuration|numLayers|activeCamera|displayStartTime|footageMissing|frameBlending|motionBlur|shutterAngle|shutterPhase|bgColor|activeCamera|cameraOption|lightOption)\b/, 'keyword'],
+                                [/\b(var|function|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|new|delete|typeof|instanceof|in|with|true|false|null|undefined|this)\b/, 'keyword'],
+                                [/\b\d+\.?\d*\b/, 'number'],
+                                [/".*?"/, 'string'],
+                                [/'.*?'/, 'string'],
+                                [/\/\/.*$/, 'comment'],
+                                [/\/\*[\s\S]*?\*\//, 'comment'],
+                                [/[{}()\[\]]/, 'bracket'],
+                                [/[;,.]/, 'delimiter'],
+                                [/[+\-*/=<>!&|?:]/, 'operator'],
+                            ]
+                        }
+                    });
+
+                    // テーマ設定
+                    monaco.editor.defineTheme('ae-dark', {
+                        base: 'vs-dark',
+                        inherit: true,
+                        rules: [
+                            { token: 'keyword', foreground: '569CD6' },
+                            { token: 'string', foreground: 'CE9178' },
+                            { token: 'comment', foreground: '6A9955' },
+                            { token: 'number', foreground: 'B5CEA8' },
+                            { token: 'operator', foreground: 'D4D4D4' },
+                        ],
+                        colors: {
+                            'editor.background': '#1a1a1a',
+                            'editor.foreground': '#ffffff',
+                            'editorLineNumber.foreground': '#858585',
+                            'editor.selectionBackground': '#264f78',
+                            'editor.lineHighlightBackground': '#2a2a2a'
+                        }
+                    });
+
+                    // エディター作成
+                    console.log('Creating Monaco Editor...');
+                    var container = document.getElementById('monacoContainer');
+                    console.log('Monaco container element:', container);
+
+                    if (!container) {
+                        console.error('Monaco container not found!');
+                        return;
+                    }
+
+                    monacoEditor = monaco.editor.create(container, {
+                        value: '',
+                        language: 'ae-expression',
+                        theme: 'ae-dark',
+                        fontSize: 12,
+                        lineNumbers: 'on',
+                        automaticLayout: true,
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        wordWrap: 'on',
+                        lineDecorationsWidth: 10,
+                        lineNumbersMinChars: 3,
+                        glyphMargin: false,
+                        folding: false,
+                        // After Effects Expression用のオートコンプリート
+                        suggest: {
+                            showKeywords: true,
+                            showSnippets: true,
+                            showFunctions: true,
+                            showVariables: true,
+                            showWords: true,
+                        },
+                        quickSuggestions: {
+                            other: true,
+                            comments: false,
+                            strings: false
+                        }
+                    });
+
+                    // エディター内容変更時に隠しtextareaと同期
+                    monacoEditor.onDidChangeModelContent(function () {
+                        document.getElementById('expressionEditor').value = monacoEditor.getValue();
+                    });
+
+                    console.log('Monaco Editor initialized successfully');
+
+                    // Monaco Editorの状態をデバッグ
+                    console.log('Monaco Editor instance:', monacoEditor);
+                    console.log('Monaco container:', document.getElementById('monacoContainer'));
+
+                    // コンテナが表示されているか確認
+                    var container = document.getElementById('monacoContainer');
+                    if (container) {
+                        console.log('Container dimensions:', {
+                            width: container.offsetWidth,
+                            height: container.offsetHeight,
+                            display: getComputedStyle(container).display,
+                            visibility: getComputedStyle(container).visibility
+                        });
+                    }
+
+                    // レイアウトを強制更新
+                    setTimeout(() => {
+                        if (monacoEditor) {
+                            monacoEditor.layout();
+                            console.log('Monaco Editor layout updated');
+                        }
+                    }, 200);
+                }, function (error) {
+                    console.error('Failed to load Monaco Editor:', error);
+                    showFallbackEditor();
+                });
             } catch (error) {
-                console.error('CodeMirror initialization failed:', error);
-                showFallbackTextarea();
-                return false;
+                console.error('Monaco Editor initialization error:', error);
+                showFallbackEditor();
             }
         }
 
-        // 不要な関数を削除（シンプルなエディターに変更）
+        // フォールバック: 通常のtextareaを表示
+        function showFallbackEditor() {
+            console.log('Using fallback textarea editor');
+            console.log('Monaco Editor failed to initialize - showing textarea fallback');
 
-        // Enhanced Editor機能は削除（シンプルなエディターに変更）
-
-        // エディターのヘルパー関数
-        function setEditorValue(value) {
+            document.getElementById('monacoContainer').style.display = 'none';
             var textarea = document.getElementById('expressionEditor');
-            if (textarea) {
-                textarea.value = value || '';
-            }
+            textarea.style.display = 'block';
+            textarea.className = 'expression-input';
+            textarea.placeholder = 'エクスプレッションを入力... (Monaco Editor fallback)';
+            textarea.rows = 6;
+
+            // ステータス更新
+            var statusDiv = document.createElement('div');
+            statusDiv.style.cssText = 'color: orange; font-size: 11px; margin-top: 5px;';
+            statusDiv.textContent = 'Monaco Editorが利用できません - 通常モードで動作中';
+            document.getElementById('monacoContainer').parentNode.appendChild(statusDiv);
         }
 
-        function getEditorValue() {
-            var textarea = document.getElementById('expressionEditor');
-            return textarea ? textarea.value : '';
+        // Monaco Editorのヘルパー関数
+        function setMonacoValue(value) {
+            if (monacoEditor) {
+                monacoEditor.setValue(value || '');
+            }
+            // 常に隠しtextareaも更新（後方互換性）
+            document.getElementById('expressionEditor').value = value || '';
         }
 
-        // Enhanced Basic Editor初期化
-        function initializeBasicEditor() {
+        function getMonacoValue() {
+            if (monacoEditor) {
+                return monacoEditor.getValue();
+            }
+            return document.getElementById('expressionEditor').value;
+        }
+
+        // 拡張エディターの初期化（Monaco Editorの代替）
+        function initializeEnhancedEditor() {
+            console.log('Initializing Enhanced Editor...');
+
+            // Monaco Editorがある場合は先にそれを試す
+            if (typeof require !== 'undefined') {
+                console.log('Trying Monaco Editor first...');
+                initializeMonacoEditor();
+                return;
+            }
+
+            // Monaco Editorが使えない場合は拡張textarea
+            showEnhancedTextarea();
+        }
+
+        // 拡張textareaエディターを表示
+        function showEnhancedTextarea() {
+            console.log('Using Enhanced Textarea Editor');
+
+            // Monaco Editorコンテナを隠す
+            document.getElementById('monacoContainer').style.display = 'none';
+
+            // textareaを表示して機能強化
             var textarea = document.getElementById('expressionEditor');
-            if (!textarea) return;
+            textarea.style.display = 'block';
+            textarea.className = 'expression-input enhanced-editor';
+            textarea.placeholder = 'エクスプレッションを入力... (Enhanced Editor)';
+            textarea.rows = 8;
 
-            // AE Expression キーワード
-            var aeKeywords = [
-                'thisComp', 'thisLayer', 'time', 'value', 'wiggle', 'ease', 'linear',
-                'position', 'scale', 'rotation', 'opacity', 'anchorPoint',
-                'transform', 'width', 'height', 'index', 'name', 'parent',
-                'valueAtTime', 'velocityAtTime', 'key', 'keyTime', 'keyValue'
-            ];
+            // エディター機能を追加
+            enhanceTextarea(textarea);
+            enhancedEditor = textarea;
 
-            // エラー表示エリアを作成
-            var errorDiv = document.createElement('div');
-            errorDiv.id = 'expressionError';
-            errorDiv.style.cssText = `
-                color: #ff6b6b;
-                font-size: 11px;
-                margin-top: 5px;
-                padding: 5px;
-                background: #2a1f1f;
-                border-radius: 3px;
-                display: none;
-            `;
-            textarea.parentNode.appendChild(errorDiv);
+            // 成功メッセージ
+            console.log('Enhanced Textarea Editor initialized successfully');
+        }
 
-            // 予測候補エリアを作成
-            var suggestionsDiv = document.createElement('div');
-            suggestionsDiv.id = 'suggestions';
-            suggestionsDiv.style.cssText = `
-                position: absolute;
-                background: #2a2a2a;
-                border: 1px solid #555;
-                border-radius: 3px;
-                max-height: 150px;
-                overflow-y: auto;
-                z-index: 1000;
-                display: none;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-                min-width: 200px;
-                margin-top: 2px;
-            `;
-            textarea.parentNode.appendChild(suggestionsDiv);
-
-            // リアルタイム機能
-            var currentSuggestions = [];
-            var selectedSuggestionIndex = -1;
-
-            // エラーチェック関数
-            function checkErrors() {
-                var text = textarea.value;
-                var errors = [];
-
-                // 括弧バランスチェック
-                var openParens = (text.match(/\(/g) || []).length;
-                var closeParens = (text.match(/\)/g) || []).length;
-                var openBrackets = (text.match(/\[/g) || []).length;
-                var closeBrackets = (text.match(/\]/g) || []).length;
-
-                if (openParens !== closeParens) errors.push('括弧 () が合いません');
-                if (openBrackets !== closeBrackets) errors.push('角括弧 [] が合いません');
-
-                var errorDiv = document.getElementById('expressionError');
-                if (errors.length > 0) {
-                    errorDiv.innerHTML = '⚠️ ' + errors.join(', ');
-                    errorDiv.style.display = 'block';
-                } else {
-                    errorDiv.style.display = 'none';
-                }
-            }
-
-            // カーソル位置を取得する関数
-            function getCursorPosition() {
-                var cursorPos = textarea.selectionStart;
-                var textBefore = textarea.value.substring(0, cursorPos);
-                var lines = textBefore.split('\n');
-                var currentLine = lines.length - 1;
-                var currentColumn = lines[lines.length - 1].length;
-
-                // テキストエリアの位置とサイズを取得
-                var textareaRect = textarea.getBoundingClientRect();
-                var style = window.getComputedStyle(textarea);
-                var padding = parseInt(style.paddingLeft);
-                var lineHeight = parseInt(style.lineHeight) || 18;
-                var fontSize = parseInt(style.fontSize) || 13;
-
-                // 文字幅を推定（等幅フォントを前提）
-                var charWidth = fontSize * 0.6;
-
-                // スクロール位置を考慮してカーソルの画面上の位置を計算
-                var x = textareaRect.left + padding + (currentColumn * charWidth);
-                var y = textareaRect.top + padding + (currentLine * lineHeight) - textarea.scrollTop;
-
-                return { x: x, y: y, lineHeight: lineHeight };
-            }
-
-            // 予測候補表示
-            function showSuggestions() {
-                var cursorPos = textarea.selectionStart;
-                var textBefore = textarea.value.substring(0, cursorPos);
-                var words = textBefore.split(/[\s\(\)\[\]{}.,;]+/);
-                var currentWord = words[words.length - 1] || '';
-
-                if (currentWord.length < 2) {
-                    suggestionsDiv.style.display = 'none';
-                    return;
-                }
-
-                currentSuggestions = aeKeywords.filter(keyword =>
-                    keyword.toLowerCase().startsWith(currentWord.toLowerCase()) &&
-                    keyword !== currentWord
-                );
-
-                if (currentSuggestions.length === 0) {
-                    suggestionsDiv.style.display = 'none';
-                    return;
-                }
-
-                var html = currentSuggestions.slice(0, 8).map((suggestion, index) =>
-                    `<div class="suggestion-item" style="padding: 6px 10px; cursor: pointer; font-family: monospace; border-bottom: 1px solid #3a3a3a; ${index === selectedSuggestionIndex ? 'background: #4a4a4a;' : ''}" data-index="${index}" onclick="insertSuggestion('${suggestion}')">${suggestion}</div>`
-                ).join('');
-
-                suggestionsDiv.innerHTML = html;
-
-                // カーソル位置を取得して候補の位置を調整
-                var cursorPosition = getCursorPosition();
-                var suggestionsHeight = Math.min(currentSuggestions.length * 28, 150); // 項目の高さ×個数
-
-                // 画面サイズを取得
-                var windowHeight = window.innerHeight;
-                var windowWidth = window.innerWidth;
-                var suggestionsWidth = 200; // 候補ウィンドウの幅
-
-                // 画面の下部に近い場合は上に表示、そうでなければ下に表示
-                var showAbove = (cursorPosition.y + suggestionsHeight + 50) > windowHeight;
-
-                // 画面の右端からはみ出さないように横位置を調整
-                var leftPosition = cursorPosition.x;
-                if (leftPosition + suggestionsWidth > windowWidth) {
-                    leftPosition = windowWidth - suggestionsWidth - 10;
-                }
-                if (leftPosition < 10) {
-                    leftPosition = 10;
-                }
-
-                suggestionsDiv.style.position = 'fixed';
-                suggestionsDiv.style.left = leftPosition + 'px';
-
-                if (showAbove) {
-                    // カーソルの上に表示
-                    suggestionsDiv.style.top = (cursorPosition.y - suggestionsHeight - 5) + 'px';
-                } else {
-                    // カーソルの下に表示（デフォルト）
-                    suggestionsDiv.style.top = (cursorPosition.y + cursorPosition.lineHeight + 5) + 'px';
-                }
-
-                suggestionsDiv.style.display = 'block';
-            }
-
-            // 候補挿入
-            window.insertSuggestion = function (suggestion) {
-                var cursorPos = textarea.selectionStart;
-                var textBefore = textarea.value.substring(0, cursorPos);
-                var words = textBefore.split(/[\s\(\)\[\]{}.,;]+/);
-                var currentWord = words[words.length - 1] || '';
-                var replaceStart = cursorPos - currentWord.length;
-
-                textarea.value = textarea.value.substring(0, replaceStart) + suggestion + textarea.value.substring(cursorPos);
-                textarea.selectionStart = textarea.selectionEnd = replaceStart + suggestion.length;
-                suggestionsDiv.style.display = 'none';
-                textarea.focus();
-            };
-
-            // イベントリスナー
-            textarea.addEventListener('input', function () {
-                checkErrors();
-                showSuggestions();
-            });
-
-            // スクロール時に候補位置を更新
-            textarea.addEventListener('scroll', function () {
-                if (suggestionsDiv.style.display === 'block') {
-                    showSuggestions();
-                }
-            });
-
+        // textareaに高機能エディター機能を追加
+        function enhanceTextarea(textarea) {
+            // タブキーでインデント
             textarea.addEventListener('keydown', function (e) {
-                // Tab インデント
                 if (e.key === 'Tab') {
                     e.preventDefault();
                     var start = this.selectionStart;
                     var end = this.selectionEnd;
                     this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
                     this.selectionStart = this.selectionEnd = start + 2;
-                    return;
-                }
-
-                // Ctrl+Space で候補表示
-                if (e.ctrlKey && e.key === ' ') {
-                    e.preventDefault();
-                    showSuggestions();
-                    return;
-                }
-
-                // Escape で候補を隠す
-                if (e.key === 'Escape') {
-                    suggestionsDiv.style.display = 'none';
-                    selectedSuggestionIndex = -1;
-                    return;
-                }
-
-                // 候補選択のナビゲーション
-                if (suggestionsDiv.style.display === 'block') {
-                    if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, currentSuggestions.length - 1);
-                        showSuggestions();
-                    } else if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
-                        showSuggestions();
-                    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
-                        e.preventDefault();
-                        insertSuggestion(currentSuggestions[selectedSuggestionIndex]);
-                    }
                 }
             });
 
-            // 外部クリックで候補を隠す
-            document.addEventListener('click', function (e) {
-                if (!e.target.closest('#suggestions') && e.target !== textarea) {
-                    suggestionsDiv.style.display = 'none';
-                    selectedSuggestionIndex = -1;
-                }
+            // シンタックス検証
+            textarea.addEventListener('blur', function () {
+                validateExpression(this.value);
             });
+        }
 
-            console.log('Enhanced Basic Editor initialized successfully');
-            document.getElementById('statusText').textContent = 'Expression Control - Enhanced Editor Ready ✨';
+        // 簡易エクスプレッション検証
+        function validateExpression(expression) {
+            var errors = [];
+
+            // 括弧のバランスチェック
+            var brackets = { '(': 0, '[': 0, '{': 0 };
+            for (var i = 0; i < expression.length; i++) {
+                var char = expression[i];
+                if (char === '(') brackets['(']++;
+                else if (char === ')') brackets['(']--;
+                else if (char === '[') brackets['[']++;
+                else if (char === ']') brackets['[']--;
+                else if (char === '{') brackets['{']++;
+                else if (char === '}') brackets['{']--;
+            }
+
+            if (brackets['('] !== 0) errors.push('括弧 () の数が合いません');
+            if (brackets['['] !== 0) errors.push('括弧 [] の数が合いません');
+            if (brackets['{'] !== 0) errors.push('括弧 {} の数が合いません');
+
+            // エラーメッセージ表示
+            var existingError = document.getElementById('expressionError');
+            if (existingError) existingError.remove();
+
+            if (errors.length > 0) {
+                var errorDiv = document.createElement('div');
+                errorDiv.id = 'expressionError';
+                errorDiv.style.cssText = 'color: #ff6b6b; font-size: 11px; margin-top: 5px; padding: 5px; background: #2a1f1f; border-radius: 3px;';
+                errorDiv.textContent = '⚠️ ' + errors.join(', ');
+                textarea.parentNode.appendChild(errorDiv);
+            }
+        }
+
+        // デバッグ用: Monaco Editorの状態を確認
+        function debugMonacoState() {
+            console.log('=== Monaco Editor Debug Info ===');
+            console.log('monacoEditor instance:', monacoEditor);
+            console.log('monacoEditor available:', !!monacoEditor);
+
+            var container = document.getElementById('monacoContainer');
+            if (container) {
+                var rect = container.getBoundingClientRect();
+                console.log('Container info:', {
+                    exists: !!container,
+                    visible: container.offsetParent !== null,
+                    dimensions: `${container.offsetWidth}x${container.offsetHeight}`,
+                    position: `${rect.left}, ${rect.top}`,
+                    display: getComputedStyle(container).display,
+                    visibility: getComputedStyle(container).visibility,
+                    zIndex: getComputedStyle(container).zIndex
+                });
+            }
+
+            var textarea = document.getElementById('expressionEditor');
+            if (textarea) {
+                console.log('Textarea info:', {
+                    display: getComputedStyle(textarea).display,
+                    visible: textarea.offsetParent !== null
+                });
+            }
         }
 
         // 初期化
         document.addEventListener('DOMContentLoaded', function () {
-            // Basic Editorを初期化
-            initializeBasicEditor();
-
-            // CSInterface初期化
+            // CSInterface初期化（優先）
             if (typeof CSInterface !== 'undefined') {
                 csInterface = new CSInterface();
 
@@ -700,11 +700,21 @@
                     csInterface.evalScript('typeof getSelectedLayers', function (typeResult) {
                         console.log('getSelectedLayers type:', typeResult);
                     });
+
+                    // ExtendScript読み込み後にエディターを初期化
+                    setTimeout(() => {
+                        initializeEnhancedEditor();
+                    }, 100);
                 });
             } else {
                 // CSInterfaceが利用できない場合（開発時など）
                 console.warn('CSInterface not available - running in mock mode');
                 document.getElementById('statusText').textContent = 'Expression Control - Mock Mode';
+
+                // Mock modeでもエディターを初期化
+                setTimeout(() => {
+                    initializeEnhancedEditor();
+                }, 100);
             }
         });
 
@@ -714,11 +724,12 @@
             document.getElementById('layerInfo').textContent = '🔄 レイヤー情報を更新中...';
 
             // This Layer(s)ボタンが押されたときエクスプレッションエディターをクリア
-            setEditorValue('');
+            setMonacoValue('');
             currentProperty = null;
 
             if (!csInterface) {
                 console.log('CSInterface not available - using mock mode');
+                // Mock mode
                 showMessage('Mock Mode: レイヤー情報を更新しました', 'success');
                 document.getElementById('layerInfo').textContent = '✅ Mock: 選択されたレイヤー';
                 return;
@@ -726,7 +737,7 @@
 
             console.log('CSInterface available, calling ExtendScript...');
 
-            // レイヤー情報取得の処理（省略 - 既存コードをそのまま使用）
+            // まずExtendScriptが利用可能かテスト
             csInterface.evalScript('app.project.activeItem ? "OK" : "NO_COMP"', function (testResult) {
                 console.log('ExtendScript test result:', testResult);
 
@@ -736,6 +747,7 @@
                     return;
                 }
 
+                // ExtendScript関数が利用可能かテスト
                 csInterface.evalScript('typeof getSelectedLayers !== "undefined" ? "API_OK" : "API_NOT_LOADED"', function (apiResult) {
                     console.log('API test result:', apiResult);
 
@@ -745,6 +757,7 @@
                         return;
                     }
 
+                    // 実際のレイヤー情報取得（シンプル形式）
                     csInterface.evalScript('getSelectedLayers()', function (result) {
                         console.log('getSelectedLayers result:', result);
 
@@ -756,6 +769,7 @@
                         }
 
                         if (result.indexOf('SUCCESS:') === 0) {
+                            // SUCCESS:2|1:Layer 1|2:Layer 2 形式を解析
                             var parts = result.split('|');
                             var count = parseInt(parts[0].substring(8));
 
@@ -765,7 +779,7 @@
                                 if (layerParts.length >= 2) {
                                     selectedLayers.push({
                                         index: parseInt(layerParts[0]),
-                                        name: layerParts.slice(1).join(':')
+                                        name: layerParts.slice(1).join(':') // 名前にコロンが含まれる場合に対応
                                     });
                                 }
                             }
@@ -797,16 +811,24 @@
             }
 
             if (selectedLayers.length === 1) {
+                // 単一レイヤーの場合
                 var layerIndex = selectedLayers[0].index;
+
+                // まずデバッグ情報を取得
                 csInterface.evalScript('debugLayerInfo(' + layerIndex + ')', function (debugResult) {
                     console.log('Layer debug info:', debugResult);
+
+                    // 次にプロパティを取得
                     csInterface.evalScript('listVisibleExpressionProps(' + layerIndex + ')', function (result) {
                         handlePropertiesResult(result, false);
                     });
                 });
             } else {
+                // 複数レイヤーの場合：共通プロパティのみ取得
                 var layerIndices = selectedLayers.map(function (layer) { return layer.index; });
+
                 console.log('Loading common properties for layers:', layerIndices);
+
                 csInterface.evalScript('listCommonExpressionProps([' + layerIndices.join(',') + '])', function (result) {
                     console.log('Common properties result:', result);
                     handlePropertiesResult(result, true);
@@ -824,10 +846,12 @@
             }
 
             if (result.indexOf('SUCCESS:') === 0) {
+                // SUCCESS:5|DEBUG:Transform=7,Contents=2,Text=0,Effects=0|PROP:Transform → Position|EXPR:0 形式を解析
                 var parts = result.split('|');
                 var successPart = parts[0].substring(8);
                 var count = parseInt(successPart);
 
+                // デバッグ情報を表示
                 if (parts[1] && parts[1].indexOf('DEBUG:') === 0) {
                     var debugInfo = parts[1].substring(6);
                     console.log('Property scan debug:', debugInfo);
@@ -841,20 +865,22 @@
                 allProperties = [];
                 var existingExpressions = [];
 
+                // 新しい安全な解析形式: |PROP:プロパティ名|EXPR:0 を処理
                 var startIndex = parts[1] && parts[1].indexOf('DEBUG:') === 0 ? 2 : 1;
 
                 for (var i = startIndex; i < parts.length; i += 2) {
+                    // PROP: と EXPR: のペアで処理
                     if (i + 1 < parts.length &&
                         parts[i].indexOf('PROP:') === 0 &&
                         parts[i + 1].indexOf('EXPR:') === 0) {
 
-                        var propName = parts[i].substring(5);
-                        var hasExpression = parts[i + 1].substring(5) === '1';
+                        var propName = parts[i].substring(5); // "PROP:" を除去
+                        var hasExpression = parts[i + 1].substring(5) === '1'; // "EXPR:" を除去
 
                         var prop = {
                             name: propName,
                             hasExpression: hasExpression,
-                            layerIndex: selectedLayers.length === 1 ? selectedLayers[0].index : -1,
+                            layerIndex: selectedLayers.length === 1 ? selectedLayers[0].index : -1, // 複数選択時は-1
                             isCommon: isCommonProps
                         };
 
@@ -908,6 +934,7 @@
             var existingExprsList = document.getElementById('existingExprsList');
             existingExprsList.innerHTML = '';
 
+            // 既存エクスプレッションを格納
             window.existingExpressions = existingExprs;
 
             for (var j = 0; j < existingExprs.length; j++) {
@@ -936,8 +963,10 @@
             var button = document.querySelector('#' + buttonId + ' .dropdown-button');
             var section = document.getElementById(buttonId).closest('.section');
 
+            // 他のドロップダウンを閉じる
             closeAllDropdowns();
 
+            // このドロップダウンを開く/閉じる
             if (list.classList.contains('show')) {
                 list.classList.remove('show');
                 button.classList.remove('open');
@@ -975,6 +1004,7 @@
                     document.getElementById('allPropsSelected').textContent = selectedProp.name;
                     document.getElementById('statusText').textContent = `プロパティ選択: ${selectedProp.name}`;
 
+                    // 同じ名前のプロパティが記入済みプロパティにあるかチェック
                     var matchingExistingIndex = -1;
                     if (window.existingExpressions) {
                         for (var i = 0; i < window.existingExpressions.length; i++) {
@@ -986,20 +1016,24 @@
                     }
 
                     if (matchingExistingIndex >= 0) {
+                        // 記入済みプロパティにも同じものがある場合は同期
                         var existingProp = window.existingExpressions[matchingExistingIndex];
                         document.getElementById('existingExprsSelected').textContent = existingProp.name;
 
+                        // 既存エクスプレッションの内容を取得
                         csInterface.evalScript('getExpressionContent(' + existingProp.layerIndex + ', "' + existingProp.name + '")', function (result) {
                             console.log('Expression content result:', result);
                             if (result.indexOf('SUCCESS:') === 0) {
                                 var expression = result.substring(8);
-                                setEditorValue(expression);
+                                setMonacoValue(expression);
                                 showMessage('既存エクスプレッションを読み込みました', 'success');
                             }
                         });
                     } else {
+                        // 記入済みプロパティにない場合は-----にリセット
                         document.getElementById('existingExprsSelected').textContent = '-----';
-                        setEditorValue('');
+                        // エクスプレッションエディターもクリア
+                        setMonacoValue('');
                         showMessage(`${selectedProp.name} を選択しました`, 'success');
                     }
                 }
@@ -1009,6 +1043,7 @@
                     currentProperty = existingProp;
                     document.getElementById('existingExprsSelected').textContent = existingProp.name;
 
+                    // 同じ名前のプロパティが可能プロパティにあるかチェック
                     var matchingAllPropsIndex = -1;
                     if (allProperties) {
                         for (var j = 0; j < allProperties.length; j++) {
@@ -1020,15 +1055,17 @@
                     }
 
                     if (matchingAllPropsIndex >= 0) {
+                        // 可能プロパティにも同じものがある場合は同期
                         document.getElementById('allPropsSelected').textContent = existingProp.name;
                     }
 
+                    // 既存エクスプレッションの内容を取得
                     csInterface.evalScript('getExpressionContent(' + existingProp.layerIndex + ', "' + existingProp.name + '")', function (result) {
                         console.log('Expression content result:', result);
 
                         if (result.indexOf('SUCCESS:') === 0) {
                             var expression = result.substring(8);
-                            setEditorValue(expression);
+                            setMonacoValue(expression);
                             showMessage('既存エクスプレッションを読み込みました', 'success');
                         } else if (result.indexOf('ERROR:') === 0) {
                             showMessage('エクスプレッション読み込みエラー: ' + result.substring(6), 'error');
@@ -1049,8 +1086,53 @@
             }
         });
 
+        function selectProperty() {
+            var dropdown = document.getElementById('allPropsDropdown');
+            var selectedIndex = dropdown.value;
+
+            if (selectedIndex !== '' && allProperties[selectedIndex]) {
+                currentProperty = allProperties[selectedIndex];
+                document.getElementById('statusText').textContent = `プロパティ選択: ${currentProperty.name}`;
+                showMessage(`${currentProperty.name} を選択しました`, 'success');
+            }
+        }
+
+        function selectExistingExpression() {
+            var dropdown = document.getElementById('existingExprsDropdown');
+            var selectedIndex = dropdown.value;
+
+            if (selectedIndex !== '' && window.existingExpressions && window.existingExpressions[selectedIndex]) {
+                var prop = window.existingExpressions[selectedIndex];
+                currentProperty = prop;
+
+                // プロパティドロップダウンも同期
+                var allDropdown = document.getElementById('allPropsDropdown');
+                for (var i = 0; i < allProperties.length; i++) {
+                    if (allProperties[i].name === prop.name) {
+                        allDropdown.value = i;
+                        break;
+                    }
+                }
+
+                // 既存エクスプレッションの内容を取得
+                csInterface.evalScript('getExpressionContent(' + prop.layerIndex + ', "' + prop.name + '")', function (result) {
+                    console.log('Expression content result:', result);
+
+                    if (result.indexOf('SUCCESS:') === 0) {
+                        var expression = result.substring(8);
+                        setMonacoValue(expression);
+                        showMessage('既存エクスプレッションを読み込みました', 'success');
+                    } else if (result.indexOf('ERROR:') === 0) {
+                        showMessage('エクスプレッション読み込みエラー: ' + result.substring(6), 'error');
+                    }
+                });
+
+                document.getElementById('statusText').textContent = `既存エクスプレッション: ${prop.name}`;
+            }
+        }
+
         function applyExpression() {
-            var expression = getEditorValue();
+            var expression = getMonacoValue();
 
             if (!expression || expression.trim() === '') {
                 showMessage('エクスプレッションが空です', 'error');
@@ -1080,12 +1162,14 @@
 
             function applyToNextLayer(index) {
                 if (index >= selectedLayers.length) {
+                    // 全て完了
                     if (errorCount === 0) {
                         showMessage(`✅ ${applyCount}個のレイヤーにエクスプレッションを適用しました`, 'success');
                     } else {
                         showMessage(`⚠️ ${applyCount}個成功、${errorCount}個エラー`, 'error');
                     }
 
+                    // プロパティリストを更新して新しいエクスプレッションを反映
                     loadProperties();
                     return;
                 }
@@ -1103,14 +1187,17 @@
                         console.error('Apply error:', result);
                     }
 
+                    // 次のレイヤーへ
                     applyToNextLayer(index + 1);
                 });
             }
 
+            // 複数レイヤー選択時のログ
             if (selectedLayers.length > 1) {
                 console.log('Applying expression to', selectedLayers.length, 'layers for common property:', currentProperty.name);
             }
 
+            // 最初のレイヤーから開始
             applyToNextLayer(0);
         }
 
@@ -1118,6 +1205,7 @@
             var successMsg = document.getElementById('successMessage');
             var errorMsg = document.getElementById('errorMessage');
 
+            // 既存のメッセージを隠す
             successMsg.style.display = 'none';
             errorMsg.style.display = 'none';
 
@@ -1125,6 +1213,7 @@
                 successMsg.textContent = message;
                 successMsg.style.display = 'block';
 
+                // 3秒後に自動的に隠す
                 setTimeout(function () {
                     successMsg.style.display = 'none';
                 }, 3000);
@@ -1132,6 +1221,7 @@
                 errorMsg.textContent = message;
                 errorMsg.style.display = 'block';
 
+                // 5秒後に自動的に隠す
                 setTimeout(function () {
                     errorMsg.style.display = 'none';
                 }, 5000);

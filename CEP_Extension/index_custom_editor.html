@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expression Control</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #2a2a2a;
+            color: #ffffff;
+            margin: 0;
+            padding: 15px;
+            font-size: 13px;
+        }
+
+        .container {
+            max-width: 100%;
+            padding-bottom: 30px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            color: #FFE082;
+        }
+
+        .section {
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .section label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #BDBDBD;
+            font-size: 12px;
+        }
+
+        .main-button {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .main-button:hover {
+            background: #45a049;
+        }
+
+        .section:focus-within {
+            z-index: 99998;
+        }
+
+        .section.dropdown-open {
+            z-index: 99998;
+        }
+
+        /* カスタムドロップダウンのスタイル */
+        .custom-dropdown {
+            position: relative;
+            width: 100%;
+        }
+
+        .dropdown-button {
+            width: 100%;
+            padding: 8px 12px;
+            background: #3a3a3a;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .dropdown-button:hover {
+            background: #4a4a4a;
+            border-color: #4CAF50;
+        }
+
+        .dropdown-arrow {
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+
+        .dropdown-button.open .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-top: none;
+            border-radius: 0 0 3px 3px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 99999;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .dropdown-list.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .dropdown-item:hover {
+            background: #4a4a4a;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item.selected {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* 独自エディターのスタイル */
+        .custom-editor-container {
+            position: relative;
+            width: 100%;
+            min-height: 150px;
+            border: 1px solid #555;
+            border-radius: 3px;
+            background: #1a1a1a;
+            overflow: hidden;
+        }
+
+        .editor-wrapper {
+            position: relative;
+            height: 150px;
+        }
+
+        .line-numbers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 40px;
+            height: 100%;
+            background: #2a2a2a;
+            border-right: 1px solid #444;
+            padding: 10px 5px;
+            box-sizing: border-box;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #888;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .editor-content {
+            position: absolute;
+            top: 0;
+            left: 41px;
+            right: 0;
+            height: 100%;
+        }
+
+        .editor-textarea {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            color: #ffffff;
+            border: none;
+            outline: none;
+            padding: 10px;
+            box-sizing: border-box;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            resize: none;
+            z-index: 2;
+            position: relative;
+        }
+
+        .syntax-highlight {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            color: transparent;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* シンタックスハイライトの色設定 */
+        .syntax-keyword {
+            color: #569CD6;
+            font-weight: bold;
+        }
+
+        .syntax-ae-keyword {
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        .syntax-string {
+            color: #CE9178;
+        }
+
+        .syntax-number {
+            color: #B5CEA8;
+        }
+
+        .syntax-comment {
+            color: #6A9955;
+            font-style: italic;
+        }
+
+        .syntax-operator {
+            color: #D4D4D4;
+        }
+
+        .syntax-bracket {
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        /* オートコンプリートのスタイル */
+        .autocomplete-popup {
+            position: absolute;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 3px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 10000;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+        }
+
+        .autocomplete-item {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: #4a4a4a;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-keyword {
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        .autocomplete-function {
+            color: #569CD6;
+        }
+
+        .apply-button {
+            width: 100%;
+            padding: 12px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .apply-button:hover {
+            background: #1976D2;
+        }
+
+        .apply-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .info-text {
+            padding: 8px;
+            background: #333;
+            border-radius: 3px;
+            color: #BDBDBD;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .messages {
+            margin-top: 15px;
+        }
+
+        .success-message {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid #4CAF50;
+            color: #C8E6C9;
+            padding: 10px;
+            border-radius: 3px;
+            display: none;
+            font-size: 12px;
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid #F44336;
+            color: #FFCDD2;
+            padding: 10px;
+            border-radius: 3px;
+            display: none;
+            font-size: 12px;
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            padding: 5px 15px;
+            border-top: 1px solid #444;
+            font-size: 11px;
+            color: #888;
+            z-index: 100;
+        }
+
+        /* エラー表示 */
+        .editor-error {
+            color: #ff6b6b;
+            font-size: 11px;
+            margin-top: 5px;
+            padding: 5px;
+            background: #2a1f1f;
+            border-radius: 3px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Expression Control</h1>
+        </div>
+
+        <!-- This Layer(s) ボタン -->
+        <div class="section">
+            <button id="thisLayersBtn" onclick="refreshLayers()" class="main-button">This Layer(s)</button>
+            <div id="layerInfo" class="info-text">レイヤーを選択してボタンをクリック</div>
+        </div>
+
+        <!-- エクスプレッション可能プロパティ一覧 -->
+        <div class="section">
+            <label>エクスプレッション可能プロパティ:</label>
+            <div class="custom-dropdown" id="allPropsCustomDropdown">
+                <div class="dropdown-button" onclick="toggleDropdown('allProps')">
+                    <span id="allPropsSelected">プロパティを選択...</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="dropdown-list" id="allPropsList">
+                    <!-- プロパティがここに動的に追加される -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 既存エクスプレッション一覧 -->
+        <div class="section">
+            <label>既存エクスプレッション:</label>
+            <div class="custom-dropdown" id="existingExprsCustomDropdown">
+                <div class="dropdown-button" onclick="toggleDropdown('existingExprs')">
+                    <span id="existingExprsSelected">-----</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="dropdown-list" id="existingExprsList">
+                    <!-- 既存エクスプレッションがここに動的に追加される -->
+                </div>
+            </div>
+        </div>
+
+        <!-- エクスプレッション記入欄 -->
+        <div class="section">
+            <label>エクスプレッション:</label>
+            <div class="custom-editor-container">
+                <div class="editor-wrapper">
+                    <div class="line-numbers" id="lineNumbers">1</div>
+                    <div class="editor-content">
+                        <div class="syntax-highlight" id="syntaxHighlight"></div>
+                        <textarea class="editor-textarea" id="expressionEditor"
+                            placeholder="エクスプレッションを入力...&#10;Ctrl+Space: オートコンプリート&#10;Tab: インデント"></textarea>
+                    </div>
+                </div>
+                <div class="autocomplete-popup" id="autocompletePopup"></div>
+            </div>
+            <div class="editor-error" id="editorError"></div>
+        </div>
+
+        <!-- Apply ボタン -->
+        <div class="section">
+            <button id="applyBtn" onclick="applyExpression()" class="apply-button">Apply</button>
+        </div>
+
+        <!-- メッセージ表示 -->
+        <div class="messages">
+            <div class="success-message" id="successMessage"></div>
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span id="statusText">Expression Control - Custom Editor Ready</span>
+    </div>
+
+    <!-- CEP Communication Library -->
+    <script src="js/CSInterface.js"></script>
+
+    <script>
+        // CEP Interface
+        var csInterface;
+        var selectedLayers = [];
+        var allProperties = [];
+        var currentProperty = null;
+
+        // 独自エディター変数
+        var customEditor = null;
+
+        // After Effects Expression Keywords
+        const AE_KEYWORDS = [
+            'thisComp', 'thisLayer', 'time', 'value', 'wiggle', 'ease', 'linear',
+            'key', 'marker', 'effect', 'transform', 'position', 'scale', 'rotation',
+            'opacity', 'anchorPoint', 'width', 'height', 'index', 'name', 'parent',
+            'source', 'inPoint', 'outPoint', 'startTime', 'duration', 'frameDuration',
+            'comp', 'layer', 'property', 'propertyGroup', 'numKeys', 'keyTime',
+            'keyValue', 'velocityAtTime', 'speedAtTime', 'temporalEase', 'spatialTangent',
+            'isSpatial', 'canSetExpression', 'expression', 'expressionEnabled',
+            'valueAtTime', 'nearestKeyIndex', 'keyIndex', 'numProperties', 'propertyIndex',
+            'propertyName', 'matchName', 'isEffect', 'isLayer', 'active', 'enabled',
+            'hasParent', 'stretch', 'timeRemap', 'blendingMode', 'trackMatteType',
+            'hasTrackMatte', 'isTrackMatte', 'preserveTransparency', 'quality',
+            'motionBlur', 'frameBlending', 'threeDLayer', 'environmentLayer',
+            'collapseTransformation', 'frameRate', 'pixelAspect', 'shutterAngle',
+            'shutterPhase', 'workAreaStart', 'workAreaDuration', 'numLayers',
+            'activeCamera', 'displayStartTime', 'footageMissing', 'bgColor',
+            'cameraOption', 'lightOption'
+        ];
+
+        const JS_KEYWORDS = [
+            'var', 'let', 'const', 'function', 'if', 'else', 'for', 'while', 'do',
+            'switch', 'case', 'default', 'break', 'continue', 'return', 'try', 'catch',
+            'finally', 'throw', 'new', 'delete', 'typeof', 'instanceof', 'in', 'with',
+            'true', 'false', 'null', 'undefined', 'this'
+        ];
+
+        // 独自エディター初期化
+        function initializeCustomEditor() {
+            console.log('Initializing Custom Editor...');
+
+            var textarea = document.getElementById('expressionEditor');
+            var syntaxHighlight = document.getElementById('syntaxHighlight');
+            var lineNumbers = document.getElementById('lineNumbers');
+            var autocompletePopup = document.getElementById('autocompletePopup');
+
+            customEditor = {
+                textarea: textarea,
+                syntaxHighlight: syntaxHighlight,
+                lineNumbers: lineNumbers,
+                autocompletePopup: autocompletePopup,
+                autocompleteVisible: false,
+                autocompleteSelectedIndex: 0,
+                autocompleteItems: []
+            };
+
+            // イベントリスナーの設定
+            setupEditorEvents();
+
+            console.log('Custom Editor initialized successfully');
+            document.getElementById('statusText').textContent = 'Expression Control - Custom Editor Ready ✨';
+        }
+
+        function setupEditorEvents() {
+            var textarea = customEditor.textarea;
+
+            // リアルタイムシンタックスハイライト
+            textarea.addEventListener('input', function () {
+                updateSyntaxHighlight();
+                updateLineNumbers();
+                validateExpression();
+                hideAutocomplete();
+            });
+
+            // スクロール同期
+            textarea.addEventListener('scroll', function () {
+                customEditor.syntaxHighlight.scrollTop = textarea.scrollTop;
+                customEditor.syntaxHighlight.scrollLeft = textarea.scrollLeft;
+                customEditor.lineNumbers.scrollTop = textarea.scrollTop;
+            });
+
+            // キーボードショートカット
+            textarea.addEventListener('keydown', function (e) {
+                handleKeyboardShortcuts(e);
+            });
+
+            // オートコンプリートの位置調整
+            textarea.addEventListener('keyup', function (e) {
+                if (e.key === 'Escape') {
+                    hideAutocomplete();
+                }
+            });
+
+            // 外部クリックでオートコンプリートを隠す
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('.custom-editor-container')) {
+                    hideAutocomplete();
+                }
+            });
+        }
+
+        function handleKeyboardShortcuts(e) {
+            // Tab キー - インデント
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                insertAtCursor('  ');
+                return;
+            }
+
+            // Ctrl+Space - オートコンプリート
+            if (e.ctrlKey && e.key === ' ') {
+                e.preventDefault();
+                showAutocomplete();
+                return;
+            }
+
+            // Enter - 括弧の自動インデント
+            if (e.key === 'Enter') {
+                var textarea = customEditor.textarea;
+                var cursorPos = textarea.selectionStart;
+                var textBefore = textarea.value.substring(0, cursorPos);
+                var lastChar = textBefore.charAt(textBefore.length - 1);
+
+                if (lastChar === '{') {
+                    e.preventDefault();
+                    insertAtCursor('\n  \n');
+                    textarea.selectionStart = textarea.selectionEnd = cursorPos + 3;
+                    return;
+                }
+            }
+
+            // 括弧の自動補完
+            var pairs = {
+                '(': ')',
+                '[': ']',
+                '{': '}',
+                '"': '"',
+                "'": "'"
+            };
+
+            if (pairs[e.key]) {
+                e.preventDefault();
+                var openChar = e.key;
+                var closeChar = pairs[openChar];
+
+                if (openChar === '"' || openChar === "'") {
+                    // クォートの場合は特別処理
+                    insertAtCursor(openChar + closeChar);
+                    var textarea = customEditor.textarea;
+                    textarea.selectionStart = textarea.selectionEnd = textarea.selectionStart - 1;
+                } else {
+                    insertAtCursor(openChar + closeChar);
+                    var textarea = customEditor.textarea;
+                    textarea.selectionStart = textarea.selectionEnd = textarea.selectionStart - 1;
+                }
+                return;
+            }
+
+            // オートコンプリートのナビゲーション
+            if (customEditor.autocompleteVisible) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigateAutocomplete(1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigateAutocomplete(-1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    selectAutocompleteItem();
+                }
+            }
+        }
+
+        function insertAtCursor(text) {
+            var textarea = customEditor.textarea;
+            var start = textarea.selectionStart;
+            var end = textarea.selectionEnd;
+
+            textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + text.length;
+
+            updateSyntaxHighlight();
+            updateLineNumbers();
+        }
+
+        function updateSyntaxHighlight() {
+            var text = customEditor.textarea.value;
+            var highlightedText = applySyntaxHighlighting(text);
+            customEditor.syntaxHighlight.innerHTML = highlightedText;
+        }
+
+        function applySyntaxHighlighting(text) {
+            // エスケープ処理
+            text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            // コメントのハイライト
+            text = text.replace(/(\/\/.*$)/gm, '<span class="syntax-comment">$1</span>');
+            text = text.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>');
+
+            // 文字列のハイライト
+            text = text.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="syntax-string">$1</span>');
+            text = text.replace(/('(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>');
+
+            // 数値のハイライト
+            text = text.replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>');
+
+            // After Effects キーワードのハイライト
+            AE_KEYWORDS.forEach(keyword => {
+                var regex = new RegExp('\\b(' + keyword + ')\\b', 'g');
+                text = text.replace(regex, '<span class="syntax-ae-keyword">$1</span>');
+            });
+
+            // JavaScript キーワードのハイライト
+            JS_KEYWORDS.forEach(keyword => {
+                var regex = new RegExp('\\b(' + keyword + ')\\b', 'g');
+                text = text.replace(regex, '<span class="syntax-keyword">$1</span>');
+            });
+
+            // 演算子のハイライト
+            text = text.replace(/([+\-*/=<>!&|?:])/g, '<span class="syntax-operator">$1</span>');
+
+            // 括弧のハイライト
+            text = text.replace(/([{}()\[\]])/g, '<span class="syntax-bracket">$1</span>');
+
+            return text;
+        }
+
+        function updateLineNumbers() {
+            var text = customEditor.textarea.value;
+            var lines = text.split('\n').length;
+            var lineNumbersHtml = '';
+
+            for (var i = 1; i <= lines; i++) {
+                lineNumbersHtml += i + '\n';
+            }
+
+            customEditor.lineNumbers.textContent = lineNumbersHtml.trim();
+        }
+
+        function showAutocomplete() {
+            var textarea = customEditor.textarea;
+            var cursorPos = textarea.selectionStart;
+            var textBefore = textarea.value.substring(0, cursorPos);
+            var words = textBefore.split(/\s+/);
+            var currentWord = words[words.length - 1] || '';
+
+            // 入力中の単語に基づいて候補を絞り込み
+            var suggestions = [];
+
+            AE_KEYWORDS.forEach(keyword => {
+                if (keyword.toLowerCase().startsWith(currentWord.toLowerCase()) && keyword !== currentWord) {
+                    suggestions.push({ text: keyword, type: 'ae-keyword' });
+                }
+            });
+
+            JS_KEYWORDS.forEach(keyword => {
+                if (keyword.toLowerCase().startsWith(currentWord.toLowerCase()) && keyword !== currentWord) {
+                    suggestions.push({ text: keyword, type: 'js-keyword' });
+                }
+            });
+
+            if (suggestions.length === 0) return;
+
+            // オートコンプリートポップアップを表示
+            customEditor.autocompleteItems = suggestions;
+            customEditor.autocompleteSelectedIndex = 0;
+            customEditor.autocompleteVisible = true;
+
+            var popup = customEditor.autocompletePopup;
+            popup.innerHTML = '';
+
+            suggestions.forEach((suggestion, index) => {
+                var item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                if (index === 0) item.classList.add('selected');
+
+                var span = document.createElement('span');
+                span.className = suggestion.type === 'ae-keyword' ? 'autocomplete-keyword' : 'autocomplete-function';
+                span.textContent = suggestion.text;
+                item.appendChild(span);
+
+                item.addEventListener('click', () => {
+                    customEditor.autocompleteSelectedIndex = index;
+                    selectAutocompleteItem();
+                });
+
+                popup.appendChild(item);
+            });
+
+            // 位置を計算して表示
+            var rect = textarea.getBoundingClientRect();
+            popup.style.left = '50px';
+            popup.style.top = '20px';
+            popup.style.display = 'block';
+        }
+
+        function navigateAutocomplete(direction) {
+            var newIndex = customEditor.autocompleteSelectedIndex + direction;
+            if (newIndex < 0) newIndex = customEditor.autocompleteItems.length - 1;
+            if (newIndex >= customEditor.autocompleteItems.length) newIndex = 0;
+
+            customEditor.autocompleteSelectedIndex = newIndex;
+
+            // 選択状態を更新
+            var items = customEditor.autocompletePopup.querySelectorAll('.autocomplete-item');
+            items.forEach((item, index) => {
+                item.classList.toggle('selected', index === newIndex);
+            });
+        }
+
+        function selectAutocompleteItem() {
+            if (!customEditor.autocompleteVisible) return;
+
+            var selectedItem = customEditor.autocompleteItems[customEditor.autocompleteSelectedIndex];
+            var textarea = customEditor.textarea;
+            var cursorPos = textarea.selectionStart;
+            var textBefore = textarea.value.substring(0, cursorPos);
+            var words = textBefore.split(/\s+/);
+            var currentWord = words[words.length - 1] || '';
+
+            // 現在の単語を選択されたアイテムに置換
+            var replaceStart = cursorPos - currentWord.length;
+            textarea.value = textarea.value.substring(0, replaceStart) + selectedItem.text + textarea.value.substring(cursorPos);
+            textarea.selectionStart = textarea.selectionEnd = replaceStart + selectedItem.text.length;
+
+            hideAutocomplete();
+            updateSyntaxHighlight();
+        }
+
+        function hideAutocomplete() {
+            customEditor.autocompleteVisible = false;
+            customEditor.autocompletePopup.style.display = 'none';
+        }
+
+        function validateExpression() {
+            var expression = customEditor.textarea.value;
+            var errors = [];
+
+            // 括弧のバランスチェック
+            var brackets = { '(': 0, '[': 0, '{': 0 };
+            for (var i = 0; i < expression.length; i++) {
+                var char = expression[i];
+                if (char === '(') brackets['(']++;
+                else if (char === ')') brackets['(']--;
+                else if (char === '[') brackets['[']++;
+                else if (char === ']') brackets['[']--;
+                else if (char === '{') brackets['{']++;
+                else if (char === '}') brackets['{']--;
+            }
+
+            if (brackets['('] !== 0) errors.push('括弧 () の数が合いません');
+            if (brackets['['] !== 0) errors.push('括弧 [] の数が合いません');
+            if (brackets['{'] !== 0) errors.push('括弧 {} の数が合いません');
+
+            // エラー表示
+            var errorDiv = document.getElementById('editorError');
+            if (errors.length > 0) {
+                errorDiv.textContent = '⚠️ ' + errors.join(', ');
+                errorDiv.style.display = 'block';
+            } else {
+                errorDiv.style.display = 'none';
+            }
+        }
+
+        // エディターのヘルパー関数
+        function setEditorValue(value) {
+            customEditor.textarea.value = value || '';
+            updateSyntaxHighlight();
+            updateLineNumbers();
+            validateExpression();
+        }
+
+        function getEditorValue() {
+            return customEditor.textarea.value;
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function () {
+            // 独自エディターを初期化
+            initializeCustomEditor();
+
+            // CSInterface初期化
+            if (typeof CSInterface !== 'undefined') {
+                csInterface = new CSInterface();
+
+                // ExtendScriptファイルをロード
+                var extensionRoot = csInterface.getSystemPath(SystemPath.EXTENSION);
+                var jsxFile = extensionRoot + '/jsx/expressionControlAPI.jsx';
+
+                console.log('Loading ExtendScript from:', jsxFile);
+                csInterface.evalScript('$.evalFile("' + jsxFile + '")', function (result) {
+                    console.log('ExtendScript load result:', result);
+                    if (result && result !== 'undefined' && result !== '') {
+                        console.error('ExtendScript loading error:', result);
+                        document.getElementById('statusText').textContent = 'Expression Control - ExtendScript エラー';
+                    } else {
+                        console.log('ExtendScript loaded successfully');
+                        document.getElementById('statusText').textContent = 'Expression Control - 準備完了 ✨';
+                    }
+
+                    // 関数が正しく読み込まれたかテスト
+                    csInterface.evalScript('typeof getSelectedLayers', function (typeResult) {
+                        console.log('getSelectedLayers type:', typeResult);
+                    });
+                });
+            } else {
+                // CSInterfaceが利用できない場合（開発時など）
+                console.warn('CSInterface not available - running in mock mode');
+                document.getElementById('statusText').textContent = 'Expression Control - Mock Mode ✨';
+            }
+        });
+
+        // This Layer(s) ボタンクリック
+        function refreshLayers() {
+            console.log('refreshLayers called');
+            document.getElementById('layerInfo').textContent = '🔄 レイヤー情報を更新中...';
+
+            // This Layer(s)ボタンが押されたときエクスプレッションエディターをクリア
+            setEditorValue('');
+            currentProperty = null;
+
+            if (!csInterface) {
+                console.log('CSInterface not available - using mock mode');
+                showMessage('Mock Mode: レイヤー情報を更新しました', 'success');
+                document.getElementById('layerInfo').textContent = '✅ Mock: 選択されたレイヤー';
+                return;
+            }
+
+            console.log('CSInterface available, calling ExtendScript...');
+
+            // レイヤー情報取得処理（既存コードを使用）
+            csInterface.evalScript('app.project.activeItem ? "OK" : "NO_COMP"', function (testResult) {
+                console.log('ExtendScript test result:', testResult);
+
+                if (testResult === 'NO_COMP') {
+                    showMessage('コンポジションをアクティブにしてください', 'error');
+                    document.getElementById('layerInfo').textContent = '❌ エラー: コンポジションがアクティブではありません';
+                    return;
+                }
+
+                csInterface.evalScript('typeof getSelectedLayers !== "undefined" ? "API_OK" : "API_NOT_LOADED"', function (apiResult) {
+                    console.log('API test result:', apiResult);
+
+                    if (apiResult === 'API_NOT_LOADED') {
+                        showMessage('ExtendScript関数が読み込まれていません', 'error');
+                        document.getElementById('layerInfo').textContent = '❌ エラー: 関数が読み込まれていません';
+                        return;
+                    }
+
+                    csInterface.evalScript('getSelectedLayers()', function (result) {
+                        console.log('getSelectedLayers result:', result);
+
+                        if (result.indexOf('ERROR:') === 0) {
+                            var errorMsg = result.substring(6);
+                            showMessage(errorMsg, 'error');
+                            document.getElementById('layerInfo').textContent = '❌ エラー: ' + errorMsg;
+                            return;
+                        }
+
+                        if (result.indexOf('SUCCESS:') === 0) {
+                            var parts = result.split('|');
+                            var count = parseInt(parts[0].substring(8));
+
+                            selectedLayers = [];
+                            for (var i = 1; i < parts.length; i++) {
+                                var layerParts = parts[i].split(':');
+                                if (layerParts.length >= 2) {
+                                    selectedLayers.push({
+                                        index: parseInt(layerParts[0]),
+                                        name: layerParts.slice(1).join(':')
+                                    });
+                                }
+                            }
+
+                            updateLayerInfo({ count: count, layers: selectedLayers });
+                            loadProperties();
+                        } else {
+                            console.error('Unexpected result format:', result);
+                            showMessage('予期しない結果形式です', 'error');
+                            document.getElementById('layerInfo').textContent = '❌ 形式エラー';
+                        }
+                    });
+                });
+            });
+        }
+
+        // 残りの関数は既存のコードをそのまま使用
+        // （updateLayerInfo, loadProperties, handlePropertiesResult等）
+
+        // 以下、既存のコードを省略して簡略化
+        function updateLayerInfo(data) {
+            var layerInfo = document.getElementById('layerInfo');
+            if (data.count === 1) {
+                layerInfo.textContent = `✅ レイヤー: ${data.layers[0].name}`;
+            } else {
+                layerInfo.textContent = `✅ 選択レイヤー: ${data.count}個`;
+            }
+        }
+
+        // プロパティ読み込み（既存コード使用）
+        function loadProperties() {
+            if (selectedLayers.length === 0) return;
+            // 既存のloadProperties実装を使用
+            console.log('Loading properties...');
+        }
+
+        // ドロップダウン関数（既存コード使用）
+        function toggleDropdown(type) {
+            console.log('Toggle dropdown:', type);
+        }
+
+        // Apply関数
+        function applyExpression() {
+            var expression = getEditorValue();
+
+            if (!expression || expression.trim() === '') {
+                showMessage('エクスプレッションが空です', 'error');
+                return;
+            }
+
+            showMessage('🚀 Mock: エクスプレッションを適用しました！', 'success');
+        }
+
+        function showMessage(message, type) {
+            var successMsg = document.getElementById('successMessage');
+            var errorMsg = document.getElementById('errorMessage');
+
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            if (type === 'success') {
+                successMsg.textContent = message;
+                successMsg.style.display = 'block';
+                setTimeout(function () {
+                    successMsg.style.display = 'none';
+                }, 3000);
+            } else if (type === 'error') {
+                errorMsg.textContent = message;
+                errorMsg.style.display = 'block';
+                setTimeout(function () {
+                    errorMsg.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+
+</html>
