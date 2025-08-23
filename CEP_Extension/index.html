@@ -382,6 +382,10 @@
             console.log('refreshLayers called');
             document.getElementById('layerInfo').textContent = '🔄 レイヤー情報を更新中...';
 
+            // This Layer(s)ボタンが押されたときエクスプレッションエディターをクリア
+            document.getElementById('expressionEditor').value = '';
+            currentProperty = null;
+
             if (!csInterface) {
                 console.log('CSInterface not available - using mock mode');
                 // Mock mode
