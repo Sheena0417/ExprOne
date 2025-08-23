@@ -658,19 +658,68 @@
         function selectCustomProperty(dropdownType, index) {
             if (dropdownType === 'allProps') {
                 if (allProperties[index]) {
-                    currentProperty = allProperties[index];
-                    document.getElementById('allPropsSelected').textContent = currentProperty.name;
-                    document.getElementById('statusText').textContent = `プロパティ選択: ${currentProperty.name}`;
-                    showMessage(`${currentProperty.name} を選択しました`, 'success');
+                    var selectedProp = allProperties[index];
+                    currentProperty = selectedProp;
+                    document.getElementById('allPropsSelected').textContent = selectedProp.name;
+                    document.getElementById('statusText').textContent = `プロパティ選択: ${selectedProp.name}`;
+
+                    // 同じ名前のプロパティが記入済みプロパティにあるかチェック
+                    var matchingExistingIndex = -1;
+                    if (window.existingExpressions) {
+                        for (var i = 0; i < window.existingExpressions.length; i++) {
+                            if (window.existingExpressions[i].name === selectedProp.name) {
+                                matchingExistingIndex = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (matchingExistingIndex >= 0) {
+                        // 記入済みプロパティにも同じものがある場合は同期
+                        var existingProp = window.existingExpressions[matchingExistingIndex];
+                        document.getElementById('existingExprsSelected').textContent = existingProp.name;
+
+                        // 既存エクスプレッションの内容を取得
+                        csInterface.evalScript('getExpressionContent(' + existingProp.layerIndex + ', "' + existingProp.name + '")', function (result) {
+                            console.log('Expression content result:', result);
+                            if (result.indexOf('SUCCESS:') === 0) {
+                                var expression = result.substring(8);
+                                document.getElementById('expressionEditor').value = expression;
+                                showMessage('既存エクスプレッションを読み込みました', 'success');
+                            }
+                        });
+                    } else {
+                        // 記入済みプロパティにない場合は-----にリセット
+                        document.getElementById('existingExprsSelected').textContent = '-----';
+                        // エクスプレッションエディターもクリア
+                        document.getElementById('expressionEditor').value = '';
+                        showMessage(`${selectedProp.name} を選択しました`, 'success');
+                    }
                 }
             } else if (dropdownType === 'existingExprs') {
                 if (window.existingExpressions && window.existingExpressions[index]) {
-                    var prop = window.existingExpressions[index];
-                    currentProperty = prop;
-                    document.getElementById('existingExprsSelected').textContent = prop.name;
+                    var existingProp = window.existingExpressions[index];
+                    currentProperty = existingProp;
+                    document.getElementById('existingExprsSelected').textContent = existingProp.name;
+
+                    // 同じ名前のプロパティが可能プロパティにあるかチェック
+                    var matchingAllPropsIndex = -1;
+                    if (allProperties) {
+                        for (var j = 0; j < allProperties.length; j++) {
+                            if (allProperties[j].name === existingProp.name) {
+                                matchingAllPropsIndex = j;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (matchingAllPropsIndex >= 0) {
+                        // 可能プロパティにも同じものがある場合は同期
+                        document.getElementById('allPropsSelected').textContent = existingProp.name;
+                    }
 
                     // 既存エクスプレッションの内容を取得
-                    csInterface.evalScript('getExpressionContent(' + prop.layerIndex + ', "' + prop.name + '")', function (result) {
+                    csInterface.evalScript('getExpressionContent(' + existingProp.layerIndex + ', "' + existingProp.name + '")', function (result) {
                         console.log('Expression content result:', result);
 
                         if (result.indexOf('SUCCESS:') === 0) {
@@ -682,7 +731,7 @@
                         }
                     });
 
-                    document.getElementById('statusText').textContent = `既存エクスプレッション: ${prop.name}`;
+                    document.getElementById('statusText').textContent = `既存エクスプレッション: ${existingProp.name}`;
                 }
             }
 
