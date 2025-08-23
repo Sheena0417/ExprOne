@@ -100,6 +100,92 @@ function listVisibleExpressionProps(layerIndex) {
     }
 }
 
+// 複数レイヤーの共通プロパティを取得
+function listCommonExpressionProps(layerIndices) {
+    try {
+        var comp = app.project.activeItem;
+        if (!(comp instanceof CompItem)) {
+            return "ERROR:アクティブなコンポジションがありません";
+        }
+
+        if (!layerIndices || layerIndices.length === 0) {
+            return "ERROR:レイヤーインデックスが指定されていません";
+        }
+
+        // 各レイヤーのプロパティを取得
+        var allPropsPerLayer = [];
+        for (var i = 0; i < layerIndices.length; i++) {
+            var layer = comp.layer(layerIndices[i]);
+            if (layer) {
+                var layerProps = [];
+                scanLayerProperties(layer, layerProps);
+                allPropsPerLayer.push(layerProps);
+            }
+        }
+
+        if (allPropsPerLayer.length === 0) {
+            return "ERROR:有効なレイヤーが見つかりません";
+        }
+
+        // 共通のプロパティ名を特定
+        var commonProps = [];
+        var firstLayerProps = allPropsPerLayer[0];
+
+        for (var j = 0; j < firstLayerProps.length; j++) {
+            var propName = firstLayerProps[j].name;
+            var isCommon = true;
+
+            // 他の全てのレイヤーに同じプロパティがあるかチェック
+            for (var k = 1; k < allPropsPerLayer.length; k++) {
+                var found = false;
+                for (var l = 0; l < allPropsPerLayer[k].length; l++) {
+                    if (allPropsPerLayer[k][l].name === propName) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    isCommon = false;
+                    break;
+                }
+            }
+
+            if (isCommon) {
+                // 共通プロパティの中で既存エクスプレッションがあるかチェック
+                var hasExpression = false;
+                for (var m = 0; m < allPropsPerLayer.length; m++) {
+                    for (var n = 0; n < allPropsPerLayer[m].length; n++) {
+                        if (allPropsPerLayer[m][n].name === propName &&
+                            allPropsPerLayer[m][n].ref.expression &&
+                            allPropsPerLayer[m][n].ref.expression !== "") {
+                            hasExpression = true;
+                            break;
+                        }
+                    }
+                    if (hasExpression) break;
+                }
+
+                commonProps.push({
+                    name: propName,
+                    hasExpression: hasExpression
+                });
+            }
+        }
+
+        // 結果を文字列形式で返す
+        var resultStr = "SUCCESS:" + commonProps.length + "|DEBUG:Common=" + commonProps.length + ",Layers=" + layerIndices.length;
+        for (var o = 0; o < commonProps.length; o++) {
+            var prop = commonProps[o];
+            var hasExpr = prop.hasExpression ? "1" : "0";
+            resultStr += "|PROP:" + prop.name + "|EXPR:" + hasExpr;
+        }
+        return resultStr;
+
+    } catch (e) {
+        return "ERROR:" + e.toString();
+    }
+}
+
 function scanLayerProperties(layer, result) {
     function scanGroup(group, path, isLayerStyles) {
         if (!group) return;

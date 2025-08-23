@@ -465,78 +465,107 @@
                 return;
             }
 
-            // 最初のレイヤーのプロパティを取得（単純化のため）
-            var layerIndex = selectedLayers[0].index;
+            if (selectedLayers.length === 1) {
+                // 単一レイヤーの場合
+                var layerIndex = selectedLayers[0].index;
 
-            // まずデバッグ情報を取得
-            csInterface.evalScript('debugLayerInfo(' + layerIndex + ')', function (debugResult) {
-                console.log('Layer debug info:', debugResult);
+                // まずデバッグ情報を取得
+                csInterface.evalScript('debugLayerInfo(' + layerIndex + ')', function (debugResult) {
+                    console.log('Layer debug info:', debugResult);
 
-                // 次にプロパティを取得
-                csInterface.evalScript('listVisibleExpressionProps(' + layerIndex + ')', function (result) {
-                    console.log('Properties result:', result);
-
-                    if (result.indexOf('ERROR:') === 0) {
-                        var errorMsg = result.substring(6);
-                        showMessage(errorMsg, 'error');
-                        return;
-                    }
-
-                    if (result.indexOf('SUCCESS:') === 0) {
-                        // SUCCESS:5|DEBUG:Transform=7,Contents=2,Text=0,Effects=0|Transform → Position:0 形式を解析
-                        var parts = result.split('|');
-                        var successPart = parts[0].substring(8);
-                        var count = parseInt(successPart);
-
-                        // デバッグ情報を表示
-                        if (parts[1] && parts[1].indexOf('DEBUG:') === 0) {
-                            var debugInfo = parts[1].substring(6);
-                            console.log('Property scan debug:', debugInfo);
-                            document.getElementById('statusText').textContent = `デバッグ: ${debugInfo}`;
-                        }
-
-                        allProperties = [];
-                        var existingExpressions = [];
-
-                        // 新しい安全な解析形式: |PROP:プロパティ名|EXPR:0 を処理
-                        var startIndex = parts[1] && parts[1].indexOf('DEBUG:') === 0 ? 2 : 1;
-
-                        for (var i = startIndex; i < parts.length; i += 2) {
-                            // PROP: と EXPR: のペアで処理
-                            if (i + 1 < parts.length &&
-                                parts[i].indexOf('PROP:') === 0 &&
-                                parts[i + 1].indexOf('EXPR:') === 0) {
-
-                                var propName = parts[i].substring(5); // "PROP:" を除去
-                                var hasExpression = parts[i + 1].substring(5) === '1'; // "EXPR:" を除去
-
-                                var prop = {
-                                    name: propName,
-                                    hasExpression: hasExpression,
-                                    layerIndex: layerIndex
-                                };
-
-                                allProperties.push(prop);
-
-                                if (hasExpression) {
-                                    existingExpressions.push(prop);
-                                }
-                            }
-                        }
-
-                        console.log('Parsed properties:', allProperties);
-                        console.log('Parsed existing expressions:', existingExpressions);
-
-                        updatePropertyDropdowns(allProperties, existingExpressions);
-
-                        if (count === 0) {
-                            showMessage('プロパティが見つかりませんでした。デバッグ情報を確認してください。', 'error');
-                        } else {
-                            showMessage(`${count}個のプロパティを読み込みました (実際: ${allProperties.length}個)`, 'success');
-                        }
-                    }
+                    // 次にプロパティを取得
+                    csInterface.evalScript('listVisibleExpressionProps(' + layerIndex + ')', function (result) {
+                        handlePropertiesResult(result, false);
+                    });
                 });
-            });
+            } else {
+                // 複数レイヤーの場合：共通プロパティのみ取得
+                var layerIndices = selectedLayers.map(function (layer) { return layer.index; });
+
+                console.log('Loading common properties for layers:', layerIndices);
+
+                csInterface.evalScript('listCommonExpressionProps([' + layerIndices.join(',') + '])', function (result) {
+                    console.log('Common properties result:', result);
+                    handlePropertiesResult(result, true);
+                });
+            }
+        }
+
+        function handlePropertiesResult(result, isCommonProps) {
+            console.log('Properties result:', result);
+
+            if (result.indexOf('ERROR:') === 0) {
+                var errorMsg = result.substring(6);
+                showMessage(errorMsg, 'error');
+                return;
+            }
+
+            if (result.indexOf('SUCCESS:') === 0) {
+                // SUCCESS:5|DEBUG:Transform=7,Contents=2,Text=0,Effects=0|PROP:Transform → Position|EXPR:0 形式を解析
+                var parts = result.split('|');
+                var successPart = parts[0].substring(8);
+                var count = parseInt(successPart);
+
+                // デバッグ情報を表示
+                if (parts[1] && parts[1].indexOf('DEBUG:') === 0) {
+                    var debugInfo = parts[1].substring(6);
+                    console.log('Property scan debug:', debugInfo);
+                    if (isCommonProps) {
+                        document.getElementById('statusText').textContent = `共通プロパティ: ${debugInfo}`;
+                    } else {
+                        document.getElementById('statusText').textContent = `デバッグ: ${debugInfo}`;
+                    }
+                }
+
+                allProperties = [];
+                var existingExpressions = [];
+
+                // 新しい安全な解析形式: |PROP:プロパティ名|EXPR:0 を処理
+                var startIndex = parts[1] && parts[1].indexOf('DEBUG:') === 0 ? 2 : 1;
+
+                for (var i = startIndex; i < parts.length; i += 2) {
+                    // PROP: と EXPR: のペアで処理
+                    if (i + 1 < parts.length &&
+                        parts[i].indexOf('PROP:') === 0 &&
+                        parts[i + 1].indexOf('EXPR:') === 0) {
+
+                        var propName = parts[i].substring(5); // "PROP:" を除去
+                        var hasExpression = parts[i + 1].substring(5) === '1'; // "EXPR:" を除去
+
+                        var prop = {
+                            name: propName,
+                            hasExpression: hasExpression,
+                            layerIndex: selectedLayers.length === 1 ? selectedLayers[0].index : -1, // 複数選択時は-1
+                            isCommon: isCommonProps
+                        };
+
+                        allProperties.push(prop);
+
+                        if (hasExpression) {
+                            existingExpressions.push(prop);
+                        }
+                    }
+                }
+
+                console.log('Parsed properties:', allProperties);
+                console.log('Parsed existing expressions:', existingExpressions);
+
+                updatePropertyDropdowns(allProperties, existingExpressions);
+
+                if (count === 0) {
+                    if (isCommonProps) {
+                        showMessage('選択したレイヤーに共通するプロパティが見つかりませんでした。', 'error');
+                    } else {
+                        showMessage('プロパティが見つかりませんでした。デバッグ情報を確認してください。', 'error');
+                    }
+                } else {
+                    if (isCommonProps) {
+                        showMessage(`${count}個の共通プロパティを読み込みました (${selectedLayers.length}レイヤー)`, 'success');
+                    } else {
+                        showMessage(`${count}個のプロパティを読み込みました (実際: ${allProperties.length}個)`, 'success');
+                    }
+                }
+            }
         }
 
         function updatePropertyDropdowns(allProps, existingExprs) {
@@ -767,6 +796,11 @@
                     // 次のレイヤーへ
                     applyToNextLayer(index + 1);
                 });
+            }
+
+            // 複数レイヤー選択時のログ
+            if (selectedLayers.length > 1) {
+                console.log('Applying expression to', selectedLayers.length, 'layers for common property:', currentProperty.name);
             }
 
             // 最初のレイヤーから開始
