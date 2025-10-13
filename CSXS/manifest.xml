@@ -1,6 +1,12 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest ExtensionBundleId="com.expressioncontrol.monaco" ExtensionBundleVersion="1.0.2" 
-                  ExtensionBundleName="Expression Control Monaco" Version="11.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ExtensionManifest
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  ExtensionBundleName="Expression Control Monaco"
+  ExtensionBundleId="com.expressioncontrol.monaco"
+  ExtensionBundleVersion="1.0.2"
+  Version="9.0">
+  
+  <Author>Expression Control</Author>
   
   <ExtensionList>
     <Extension Id="com.expressioncontrol.monaco" Version="1.0.2" />
@@ -8,61 +14,55 @@
   
   <ExecutionEnvironment>
     <HostList>
-      <Host Name="AEFT" Version="[17.0,99.9]" />
+      <Host Name="AEFT" Version="13.0" />
     </HostList>
     <LocaleList>
       <Locale Code="All" />
     </LocaleList>
     <RequiredRuntimeList>
-      <RequiredRuntime Name="CSXS" Version="11.0" />
+      <RequiredRuntime Name="CSXS" Version="9.0" />
     </RequiredRuntimeList>
   </ExecutionEnvironment>
   
   <DispatchInfoList>
     <Extension Id="com.expressioncontrol.monaco">
-      <MainPath>./index.html</MainPath>
-      <ScriptPath>./jsx/expressionControl.jsx</ScriptPath>
-      
-      <CEFCommandLine>
-        <Parameter>--enable-nodejs</Parameter>
-        <Parameter>--mixed-context</Parameter>
-      </CEFCommandLine>
-      
-      <Geometry>
-        <Size>
-          <Width>600</Width>
-          <Height>700</Height>
-        </Size>
-        <MinSize>
-          <Width>400</Width>
-          <Height>300</Height>
-        </MinSize>
-        <MaxSize>
-          <Width>1200</Width>
-          <Height>1200</Height>
-        </MaxSize>
-      </Geometry>
-      
-      <UI>
-        <Type>Panel</Type>
-        <Menu>Expression Control (Monaco)</Menu>
-        <Geometry>
-          <Size>
-            <Width>600</Width>
-            <Height>700</Height>
-          </Size>
-          <MinSize>
-            <Width>400</Width>
-            <Height>300</Height>
-          </MinSize>
-        </Geometry>
-        <Icons>
-          <Icon Type="Normal">./assets/icon-normal.png</Icon>
-          <Icon Type="RollOver">./assets/icon-rollover.png</Icon>
-          <Icon Type="DarkNormal">./assets/icon-dark.png</Icon>
-          <Icon Type="DarkRollOver">./assets/icon-dark-rollover.png</Icon>
-        </Icons>
-      </UI>
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html</MainPath>
+          <ScriptPath>./jsx/expressionControl.jsx</ScriptPath>
+          <CEFCommandLine>
+            <Parameter>--enable-nodejs</Parameter>
+            <Parameter>--mixed-context</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Expression Control (Monaco)</Menu>
+          <Geometry>
+            <Size>
+              <Width>600</Width>
+              <Height>700</Height>
+            </Size>
+            <MinSize>
+              <Width>400</Width>
+              <Height>300</Height>
+            </MinSize>
+            <MaxSize>
+              <Width>1200</Width>
+              <Height>1200</Height>
+            </MaxSize>
+          </Geometry>
+          <Icons>
+            <Icon Type="Normal">./assets/icon-normal.png</Icon>
+            <Icon Type="RollOver">./assets/icon-rollover.png</Icon>
+            <Icon Type="DarkNormal">./assets/icon-dark.png</Icon>
+            <Icon Type="DarkRollOver">./assets/icon-dark-rollover.png</Icon>
+          </Icons>
+        </UI>
+      </DispatchInfo>
     </Extension>
   </DispatchInfoList>
   
