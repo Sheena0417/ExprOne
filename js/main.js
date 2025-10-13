@@ -312,12 +312,14 @@ function setupEventListeners() {
     console.log('Setting up event listeners...');
 
     const thisLayersBtn = document.getElementById('thisLayersBtn');
-    const propertySelect = document.getElementById('propertySelect');
     const applyBtn = document.getElementById('applyBtn');
+    const customSelectButton = document.getElementById('customSelectButton');
+    const customSelectDropdown = document.getElementById('customSelectDropdown');
+    const propertySearchInput = document.getElementById('propertySearchInput');
 
     console.log('thisLayersBtn:', thisLayersBtn);
-    console.log('propertySelect:', propertySelect);
     console.log('applyBtn:', applyBtn);
+    console.log('customSelectButton:', customSelectButton);
 
     if (thisLayersBtn) {
         console.log('✅ Adding click listener to thisLayersBtn');
@@ -331,9 +333,29 @@ function setupEventListeners() {
         showDebug('❌ This Layer(s) ボタンが見つかりません');
     }
 
-    if (propertySelect) {
-        propertySelect.addEventListener('change', onPropertySelected);
+    // カスタムドロップダウンのイベント
+    if (customSelectButton) {
+        customSelectButton.addEventListener('click', function (e) {
+            e.stopPropagation();
+            toggleCustomDropdown();
+        });
     }
+
+    // 検索フィルター
+    if (propertySearchInput) {
+        propertySearchInput.addEventListener('input', function (e) {
+            filterProperties(e.target.value);
+        });
+    }
+
+    // ドロップダウン外をクリックで閉じる
+    document.addEventListener('click', function (e) {
+        if (customSelectDropdown && customSelectDropdown.style.display === 'block') {
+            if (!customSelectDropdown.contains(e.target) && e.target !== customSelectButton) {
+                closeCustomDropdown();
+            }
+        }
+    });
 
     if (applyBtn) {
         applyBtn.addEventListener('click', applyExpression);
@@ -508,34 +530,123 @@ function handlePropertiesResult(result) {
     }
 }
 
+// カスタムドロップダウンの開閉
+function toggleCustomDropdown() {
+    const dropdown = document.getElementById('customSelectDropdown');
+    if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+        document.getElementById('propertySearchInput').value = '';
+        filterProperties('');  // 検索をリセット
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
+function closeCustomDropdown() {
+    const dropdown = document.getElementById('customSelectDropdown');
+    dropdown.style.display = 'none';
+}
+
+// プロパティ検索フィルター
+function filterProperties(searchText) {
+    const options = document.querySelectorAll('.custom-select-option:not(.disabled)');
+    const lowerSearch = searchText.toLowerCase();
+
+    options.forEach(option => {
+        const propName = option.dataset.propertyName || option.textContent;
+        if (propName.toLowerCase().includes(lowerSearch)) {
+            option.style.display = 'block';
+        } else {
+            option.style.display = 'none';
+        }
+    });
+}
+
+// カスタムドロップダウンでプロパティを選択
+function selectCustomProperty(propertyData) {
+    currentProperty = propertyData;
+    console.log('Selected property:', currentProperty.name);
+
+    // ボタンのテキストを更新
+    const button = document.getElementById('customSelectButton');
+    button.textContent = currentProperty.name + (currentProperty.hasExpression ? ' ✓' : '');
+    button.title = currentProperty.name;
+
+    // 選択状態をハイライト
+    document.querySelectorAll('.custom-select-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    event.target.classList.add('selected');
+
+    // ドロップダウンを閉じる
+    closeCustomDropdown();
+
+    // 既存のエクスプレッションを読み込み
+    if (currentProperty.hasExpression && currentProperty.layerIndex !== -1) {
+        csInterface.evalScript(`getExpressionContent(${currentProperty.layerIndex}, "${currentProperty.name}")`, function (result) {
+            console.log('Expression content result:', result);
+
+            if (result.indexOf('SUCCESS:') === 0) {
+                const expression = result.substring(8);
+                if (monacoEditor && expression) {
+                    monacoEditor.setValue(expression);
+                }
+            }
+        });
+    } else {
+        if (monacoEditor) {
+            monacoEditor.setValue('');
+        }
+    }
+}
+
 // プロパティリスト更新
 function updatePropertyList() {
-    const propertySelect = document.getElementById('propertySelect');
-    if (!propertySelect) return;
+    const optionsContainer = document.getElementById('customSelectOptions');
+    if (!optionsContainer) return;
 
-    propertySelect.innerHTML = '';
+    optionsContainer.innerHTML = '';
 
     if (allProperties.length === 0) {
-        const option = document.createElement('option');
-        option.textContent = 'プロパティが見つかりません';
-        option.disabled = true;
-        propertySelect.appendChild(option);
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'custom-select-option disabled';
+        emptyDiv.textContent = 'プロパティが見つかりません';
+        optionsContainer.appendChild(emptyDiv);
         return;
     }
 
     allProperties.forEach(prop => {
-        const option = document.createElement('option');
-        option.value = prop.name;
-        option.textContent = prop.name + (prop.hasExpression ? ' ⚡' : '');
-        option.dataset.property = JSON.stringify(prop);
-        propertySelect.appendChild(option);
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'custom-select-option';
+        optionDiv.textContent = prop.name + (prop.hasExpression ? ' ✓' : '');
+        optionDiv.title = prop.name;
+        optionDiv.dataset.propertyName = prop.name;
+        optionDiv.dataset.property = JSON.stringify(prop);
+
+        optionDiv.addEventListener('click', function () {
+            selectCustomProperty(JSON.parse(this.dataset.property));
+        });
+
+        optionsContainer.appendChild(optionDiv);
     });
+
+    // ボタンのテキストをリセット
+    const button = document.getElementById('customSelectButton');
+    button.textContent = 'プロパティを選択...';
 }
 
 // プロパティ選択時
 function onPropertySelected(event) {
     const selectedOption = event.target.selectedOptions[0];
-    if (!selectedOption || !selectedOption.dataset.property) return;
+
+    // 空のオプション（「プロパティを選択...」）が選択された場合は何もしない
+    if (!selectedOption || !selectedOption.value || !selectedOption.dataset.property) {
+        currentProperty = null;
+        if (window.editor) {
+            window.editor.setValue('');  // エディタをクリア
+        }
+        return;
+    }
 
     currentProperty = JSON.parse(selectedOption.dataset.property);
     console.log('Selected property:', currentProperty.name);
