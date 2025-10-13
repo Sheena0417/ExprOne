@@ -99,6 +99,100 @@ function loadMonacoLoader() {
     console.log('📝 loader.js script tag added to document');
 }
 
+// AE Expression Completion Lists (organized by category)
+const aeKeywords = [
+    { label: 'thisComp', doc: 'Current composition' },
+    { label: 'thisLayer', doc: 'Current layer' },
+    { label: 'thisProperty', doc: 'Current property' },
+    { label: 'time', doc: 'Current time in seconds' },
+    { label: 'value', doc: 'Original property value' },
+    { label: 'index', doc: 'Layer index' },
+    { label: 'colorDepth', doc: 'Bit depth of composition' },
+    { label: 'posterizeTime', doc: 'Lock time to specific frame rate' }
+];
+
+const aeInterpolation = [
+    { label: 'linear', params: '${1:t}, ${2:value1}, ${3:value2}', doc: 'Linear interpolation' },
+    { label: 'ease', params: '${1:t}, ${2:value1}, ${3:value2}', doc: 'Ease interpolation' },
+    { label: 'easeIn', params: '${1:t}, ${2:value1}, ${3:value2}', doc: 'Ease-in interpolation' },
+    { label: 'easeOut', params: '${1:t}, ${2:value1}, ${3:value2}', doc: 'Ease-out interpolation' }
+];
+
+const aeRandom = [
+    { label: 'random', params: '${1:maxValOrArray}', doc: 'Random number between 0 and max' },
+    { label: 'gaussRandom', params: '${1:maxValOrArray}', doc: 'Gaussian random distribution' },
+    { label: 'noise', params: '${1:valOrArray}', doc: 'Noise function' },
+    { label: 'seedRandom', params: '${1:seed}, ${2:timeless}', doc: 'Set random seed' }
+];
+
+const aeLoop = [
+    { label: 'loopIn', params: '"${1:type}", ${2:numKeyframes}', doc: 'Loop keyframes before current time. Types: cycle, pingpong, offset, continue' },
+    { label: 'loopOut', params: '"${1:type}", ${2:numKeyframes}', doc: 'Loop keyframes after current time' },
+    { label: 'loopInDuration', params: '"${1:type}", ${2:duration}', doc: 'Loop duration before current time' },
+    { label: 'loopOutDuration', params: '"${1:type}", ${2:duration}', doc: 'Loop duration after current time' }
+];
+
+const aeTime = [
+    { label: 'valueAtTime', params: '${1:t}', doc: 'Value at specified time' },
+    { label: 'velocityAtTime', params: '${1:t}', doc: 'Velocity at specified time' },
+    { label: 'speedAtTime', params: '${1:t}', doc: 'Speed at specified time' },
+    { label: 'timeToFrames', params: '${1:t}, ${2:fps}', doc: 'Convert time to frame number' },
+    { label: 'framesToTime', params: '${1:frames}, ${2:fps}', doc: 'Convert frame number to time' },
+    { label: 'timeToTimecode', params: '${1:t}, ${2:timecodeBase}, ${3:isDuration}', doc: 'Convert time to timecode string' }
+];
+
+const aeKeyframe = [
+    { label: 'key', params: '${1:index}', doc: 'Get keyframe by index' },
+    { label: 'nearestKey', params: '${1:t}', doc: 'Get nearest keyframe to time' },
+    { label: 'numKeys', params: '', doc: 'Number of keyframes' }
+];
+
+const aeVectorMath = [
+    { label: 'add', params: '${1:vec1}, ${2:vec2}', doc: 'Add two vectors' },
+    { label: 'sub', params: '${1:vec1}, ${2:vec2}', doc: 'Subtract vectors' },
+    { label: 'mul', params: '${1:vec}, ${2:amount}', doc: 'Multiply vector' },
+    { label: 'div', params: '${1:vec}, ${2:amount}', doc: 'Divide vector' },
+    { label: 'clamp', params: '${1:value}, ${2:min}, ${3:max}', doc: 'Clamp value between min and max' },
+    { label: 'dot', params: '${1:vec1}, ${2:vec2}', doc: 'Dot product of vectors' },
+    { label: 'cross', params: '${1:vec1}, ${2:vec2}', doc: 'Cross product of vectors' },
+    { label: 'normalize', params: '${1:vec}', doc: 'Normalize vector' },
+    { label: 'length', params: '${1:vec}', doc: 'Length of vector' },
+    { label: 'length', params: '${1:point1}, ${2:point2}', doc: 'Distance between two points' },
+    { label: 'lookAt', params: '${1:fromPoint}, ${2:atPoint}', doc: 'Calculate rotation to look at point' }
+];
+
+const aeColor = [
+    { label: 'rgbToHsl', params: '${1:rgbaArray}', doc: 'Convert RGB to HSL' },
+    { label: 'hslToRgb', params: '${1:hslaArray}', doc: 'Convert HSL to RGB' },
+    { label: 'hexToRgb', params: '"${1:hexString}"', doc: 'Convert hex color to RGB' }
+];
+
+const aeMath = [
+    { label: 'Math.abs', params: '${1:value}', doc: 'Absolute value' },
+    { label: 'Math.sin', params: '${1:value}', doc: 'Sine' },
+    { label: 'Math.cos', params: '${1:value}', doc: 'Cosine' },
+    { label: 'Math.tan', params: '${1:value}', doc: 'Tangent' },
+    { label: 'Math.asin', params: '${1:value}', doc: 'Arcsine' },
+    { label: 'Math.acos', params: '${1:value}', doc: 'Arccosine' },
+    { label: 'Math.atan', params: '${1:value}', doc: 'Arctangent' },
+    { label: 'Math.atan2', params: '${1:y}, ${2:x}', doc: 'Angle from x-axis to point' },
+    { label: 'Math.sqrt', params: '${1:value}', doc: 'Square root' },
+    { label: 'Math.pow', params: '${1:base}, ${2:exponent}', doc: 'Power' },
+    { label: 'Math.exp', params: '${1:value}', doc: 'e to the power' },
+    { label: 'Math.log', params: '${1:value}', doc: 'Natural logarithm' },
+    { label: 'Math.floor', params: '${1:value}', doc: 'Round down' },
+    { label: 'Math.ceil', params: '${1:value}', doc: 'Round up' },
+    { label: 'Math.round', params: '${1:value}', doc: 'Round to nearest integer' },
+    { label: 'Math.min', params: '${1:val1}, ${2:val2}', doc: 'Minimum of values' },
+    { label: 'Math.max', params: '${1:val1}, ${2:val2}', doc: 'Maximum of values' }
+];
+
+const aeAnimation = [
+    { label: 'wiggle', params: '${1:freq}, ${2:amp}', doc: 'Random wiggle motion' },
+    { label: 'smooth', params: '${1:width}, ${2:samples}', doc: 'Smooth temporal variation' },
+    { label: 'sourceRectAtTime', params: '${1:t}, ${2:includeExtents}', doc: 'Source rectangle at time' }
+];
+
 // Register completion provider for AE expressions
 function registerCompletionProvider() {
     monaco.languages.registerCompletionItemProvider('ae-expression', {
@@ -113,119 +207,41 @@ function registerCompletionProvider() {
 
             const suggestions = [];
 
-            // Basic AE keywords
-            suggestions.push(
-                {
-                    label: 'thisComp',
+            // Add keywords
+            aeKeywords.forEach(item => {
+                suggestions.push({
+                    label: item.label,
                     kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: 'thisComp',
-                    documentation: 'Current composition',
+                    insertText: item.label,
+                    documentation: item.doc,
                     range: range
-                },
-                {
-                    label: 'thisLayer',
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: 'thisLayer',
-                    documentation: 'Current layer',
-                    range: range
-                },
-                {
-                    label: 'thisProperty',
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: 'thisProperty',
-                    documentation: 'Current property',
-                    range: range
-                },
-                {
-                    label: 'time',
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: 'time',
-                    documentation: 'Current time in seconds',
-                    range: range
-                },
-                {
-                    label: 'value',
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: 'value',
-                    documentation: 'Original property value',
-                    range: range
-                },
-                {
-                    label: 'index',
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: 'index',
-                    documentation: 'Layer index',
-                    range: range
-                }
-            );
+                });
+            });
 
-            // AE functions
-            suggestions.push(
-                {
-                    label: 'wiggle',
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: 'wiggle(${1:freq}, ${2:amp})',
-                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: 'Random wiggle motion: wiggle(frequency, amplitude)',
-                    range: range
-                },
-                {
-                    label: 'linear',
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: 'linear(${1:t}, ${2:tMin}, ${3:tMax}, ${4:value1}, ${5:value2})',
-                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: 'Linear interpolation',
-                    range: range
-                },
-                {
-                    label: 'ease',
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: 'ease(${1:t}, ${2:tMin}, ${3:tMax}, ${4:value1}, ${5:value2})',
-                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: 'Ease interpolation',
-                    range: range
-                },
-                {
-                    label: 'easeIn',
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: 'easeIn(${1:t}, ${2:tMin}, ${3:tMax}, ${4:value1}, ${5:value2})',
-                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: 'Ease-in interpolation',
-                    range: range
-                },
-                {
-                    label: 'easeOut',
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: 'easeOut(${1:t}, ${2:tMin}, ${3:tMax}, ${4:value1}, ${5:value2})',
-                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: 'Ease-out interpolation',
-                    range: range
-                },
-                {
-                    label: 'loopIn',
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: 'loopIn("${1:type}")',
-                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: 'Loop keyframes before current time',
-                    range: range
-                },
-                {
-                    label: 'loopOut',
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: 'loopOut("${1:type}")',
-                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: 'Loop keyframes after current time',
-                    range: range
-                },
-                {
-                    label: 'clamp',
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: 'clamp(${1:value}, ${2:min}, ${3:max})',
-                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: 'Clamp value between min and max',
-                    range: range
-                }
-            );
+            // Helper function to add function completions
+            function addFunctions(list) {
+                list.forEach(item => {
+                    suggestions.push({
+                        label: item.label,
+                        kind: monaco.languages.CompletionItemKind.Function,
+                        insertText: item.params ? `${item.label}(${item.params})` : `${item.label}()`,
+                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                        documentation: item.doc,
+                        range: range
+                    });
+                });
+            }
+
+            // Add all function categories
+            addFunctions(aeInterpolation);
+            addFunctions(aeRandom);
+            addFunctions(aeLoop);
+            addFunctions(aeTime);
+            addFunctions(aeKeyframe);
+            addFunctions(aeVectorMath);
+            addFunctions(aeColor);
+            addFunctions(aeMath);
+            addFunctions(aeAnimation);
 
             // Dynamic suggestions: Compositions
             projectInfo.compositions.forEach(comp => {
