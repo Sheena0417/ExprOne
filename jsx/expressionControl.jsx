@@ -1,9 +1,13 @@
 /**
  * Expression Control ExtendScript
- * CEP Extension用に最適化されたAfter Effects Expression制御スクリプト
+ * CEP Extension用のAfter Effects Expression制御スクリプト
  */
 
-// ユーティリティ関数
+// グローバル変数（レイヤーとプロパティのキャッシュ）
+var cachedLayers = [];
+var cachedProps = [];
+
+// ユーティリティ: エラーログ
 function logError(msg, error) {
     if (error) {
         $.writeln("Error: " + msg + " - " + error.toString());
@@ -12,16 +16,7 @@ function logError(msg, error) {
     }
 }
 
-function safeExecute(func, errorMsg) {
-    try {
-        return func();
-    } catch (e) {
-        logError(errorMsg, e);
-        return null;
-    }
-}
-
-// レイヤー取得関数（文字列形式で返す - main.jsとの互換性）
+// 選択レイヤー取得（文字列形式で返す）
 function getSelectedLayers() {
     try {
         var comp = app.project.activeItem;
@@ -30,6 +25,12 @@ function getSelectedLayers() {
         }
         if (comp.selectedLayers.length === 0) {
             return "ERROR:1つ以上のレイヤーを選択してください。";
+        }
+
+        // グローバルキャッシュに保存
+        cachedLayers = [];
+        for (var i = 0; i < comp.selectedLayers.length; i++) {
+            cachedLayers.push(comp.selectedLayers[i]);
         }
 
         var result = "SUCCESS:" + comp.selectedLayers.length;
@@ -45,21 +46,23 @@ function getSelectedLayers() {
     }
 }
 
-// エクスプレッション可能なプロパティをスキャン
+// プロパティスキャン（動作する JSX をベースに）
 function listVisibleExpressionProps(layerIndex) {
-    return safeExecute(function () {
+    try {
         var comp = app.project.activeItem;
         if (!(comp instanceof CompItem)) {
-            return { error: "アクティブなコンポジションがありません。" };
+            return "ERROR:アクティブなコンポジションがありません。";
         }
 
-        var layer = comp.layer(layerIndex);
-        if (!layer) {
-            return { error: "レイヤーが見つかりません。" };
+        var selectedLayer = comp.layer(layerIndex);
+        if (!selectedLayer) {
+            return "ERROR:レイヤーが見つかりません。";
         }
 
         var result = [];
+        cachedProps = []; // グローバルキャッシュをクリア
 
+        // グループをスキャンする再帰関数
         function scanGroup(group, path, isLayerStyles) {
             if (!group) return;
 
@@ -71,7 +74,7 @@ function listVisibleExpressionProps(layerIndex) {
                     var fullPath = path + " → " + prop.name;
 
                     if (prop.numProperties > 0 && !(prop instanceof Property)) {
-                        // グループプロパティの場合
+                        // グループプロパティ
                         if (isLayerStyles) {
                             if (prop.enabled && prop.active) {
                                 scanGroup(prop, fullPath, false);
@@ -80,18 +83,15 @@ function listVisibleExpressionProps(layerIndex) {
                             scanGroup(prop, fullPath, false);
                         }
                     } else {
-                        // 個別プロパティの場合
+                        // 個別プロパティ
                         if (prop.canSetExpression) {
-                            var propInfo = {
+                            var hasExpr = (prop.expression && prop.expression !== "");
+                            result.push({
                                 name: fullPath,
-                                matchName: prop.matchName,
-                                propertyType: prop.propertyType,
-                                hasExpression: (prop.expression && prop.expression !== ""),
-                                expression: prop.expression || "",
-                                value: getPropertyValue(prop),
-                                path: getPropertyPath(prop)
-                            };
-                            result.push(propInfo);
+                                hasExpression: hasExpr
+                            });
+                            // プロパティの参照をキャッシュに保存（インデックスで参照）
+                            cachedProps.push(prop);
                         }
                     }
                 } catch (e) {
@@ -100,46 +100,32 @@ function listVisibleExpressionProps(layerIndex) {
             }
         }
 
-        // 各グループをスキャン
-        var groups = [
-            { name: "Text", matchName: "ADBE Text Properties" },
-            { name: "Contents", matchName: "ADBE Root Vectors Group" },
-            { name: "Transform", matchName: "ADBE Transform Group" },
-            { name: "Light Options", matchName: "ADBE Light Options Group" },
-            { name: "Camera Options", matchName: "ADBE Camera Options Group" },
-            { name: "Material Options", matchName: "ADBE Material Options Group" }
-        ];
+        // Text プロパティ
+        var textGroup = selectedLayer.property("ADBE Text Properties");
+        if (textGroup) scanGroup(textGroup, "Text", false);
 
-        for (var g = 0; g < groups.length; g++) {
-            var group = layer.property(groups[g].matchName);
-            if (group) {
-                scanGroup(group, groups[g].name, false);
-            }
-        }
+        // Contents プロパティ
+        var contentsGroup = selectedLayer.property("ADBE Root Vectors Group");
+        if (contentsGroup) scanGroup(contentsGroup, "Contents", false);
 
-        // エフェクトの処理
-        var effects = layer.property("ADBE Effect Parade");
+        // Effects（エフェクト）
+        var effects = selectedLayer.property("ADBE Effect Parade");
         if (effects) {
             for (var i = 1; i <= effects.numProperties; i++) {
                 try {
                     var effect = effects.property(i);
                     if (!effect) continue;
-
                     var baseLabel = "Effects → " + effect.name;
                     for (var j = 1; j <= effect.numProperties; j++) {
                         try {
                             var subProp = effect.property(j);
                             if (subProp && subProp.canSetExpression) {
-                                var propInfo = {
+                                var hasExpr = (subProp.expression && subProp.expression !== "");
+                                result.push({
                                     name: baseLabel + " → " + subProp.name,
-                                    matchName: subProp.matchName,
-                                    propertyType: subProp.propertyType,
-                                    hasExpression: (subProp.expression && subProp.expression !== ""),
-                                    expression: subProp.expression || "",
-                                    value: getPropertyValue(subProp),
-                                    path: getPropertyPath(subProp)
-                                };
-                                result.push(propInfo);
+                                    hasExpression: hasExpr
+                                });
+                                cachedProps.push(subProp);
                             }
                         } catch (e) { }
                     }
@@ -147,29 +133,43 @@ function listVisibleExpressionProps(layerIndex) {
             }
         }
 
-        // 3Dレイヤー用ジオメトリオプション
-        if (layer.threeDLayer) {
+        // Transform プロパティ
+        var transformGroup = selectedLayer.property("ADBE Transform Group");
+        if (transformGroup) scanGroup(transformGroup, "Transform", false);
+
+        // Light Options
+        var lightOptions = selectedLayer.property("ADBE Light Options Group");
+        if (lightOptions) scanGroup(lightOptions, "Light Options", false);
+
+        // Camera Options
+        var cameraOptions = selectedLayer.property("ADBE Camera Options Group");
+        if (cameraOptions) scanGroup(cameraOptions, "Camera Options", false);
+
+        // Geometry Options（3Dレイヤー）
+        if (selectedLayer.threeDLayer) {
             var geoMatchNames = [
                 "ADBE Geometry Options Group",
                 "ADBE Plane Options Group",
                 "ADBE Extrsn Options Group"
             ];
-
-            for (var k = 0; k < geoMatchNames.length; k++) {
-                var group = layer.property(geoMatchNames[k]);
+            for (var i = 0; i < geoMatchNames.length; i++) {
+                var group = selectedLayer.property(geoMatchNames[i]);
                 if (group) {
                     scanGroup(group, "Geometry Options", false);
                     break;
                 }
             }
+
+            var materialGroup = selectedLayer.property("ADBE Material Options Group");
+            if (materialGroup) scanGroup(materialGroup, "Material Options", false);
         }
 
-        // レイヤースタイル
-        var layerStyles = layer.property("ADBE Layer Styles");
+        // Layer Styles
+        var layerStyles = selectedLayer.property("ADBE Layer Styles");
         if (layerStyles) {
-            for (var l = 1; l <= layerStyles.numProperties; l++) {
+            for (var k = 1; k <= layerStyles.numProperties; k++) {
                 try {
-                    var styleGroup = layerStyles.property(l);
+                    var styleGroup = layerStyles.property(k);
                     if (styleGroup && styleGroup.numProperties > 0 &&
                         styleGroup.enabled && styleGroup.active) {
                         scanGroup(styleGroup, "Layer Styles → " + styleGroup.name, true);
@@ -178,108 +178,78 @@ function listVisibleExpressionProps(layerIndex) {
             }
         }
 
-        // 文字列形式で返す（main.jsとの互換性）
+        // 文字列形式で返す（main.js との互換性）
         var output = "SUCCESS:";
         for (var m = 0; m < result.length; m++) {
-            if (m > 0) output += "|";
-            output += "PROP:" + result[m].name;
+            output += "|PROP:" + result[m].name;
             output += "|EXPR:" + (result[m].hasExpression ? "1" : "0");
         }
 
         return output;
 
-    }, "プロパティスキャン");
-}
-
-// プロパティの値を取得（型に応じて）
-function getPropertyValue(prop) {
-    try {
-        if (prop.propertyType === PropertyType.ThreeD_SPATIAL ||
-            prop.propertyType === PropertyType.TwoD_SPATIAL ||
-            prop.propertyType === PropertyType.ThreeD ||
-            prop.propertyType === PropertyType.TwoD) {
-            return prop.value.toString();
-        } else {
-            return prop.value;
-        }
     } catch (e) {
-        return "取得不可";
+        logError("プロパティスキャン", e);
+        return "ERROR:" + e.toString();
     }
 }
 
-// プロパティのパスを取得
-function getPropertyPath(prop) {
-    var path = [];
-    var current = prop;
-
-    while (current && current.parentProperty && !(current.parentProperty instanceof AVLayer)) {
-        path.unshift(current.matchName);
-        current = current.parentProperty;
-    }
-
-    return path;
-}
-
-// 複数レイヤーの共通プロパティを取得
+// 共通プロパティ取得（複数レイヤー）
 function listCommonExpressionProps(layerIndices) {
-    return safeExecute(function () {
+    try {
         if (!layerIndices || layerIndices.length === 0) {
-            return { error: "レイヤーが指定されていません。" };
+            return "ERROR:レイヤーが指定されていません。";
+        }
+
+        var comp = app.project.activeItem;
+        if (!(comp instanceof CompItem)) {
+            return "ERROR:アクティブなコンポジションがありません。";
         }
 
         var allPropsPerLayer = [];
 
-        // 各レイヤーのプロパティを取得
+        // 各レイヤーのプロパティ名を取得
         for (var i = 0; i < layerIndices.length; i++) {
-            var props = listVisibleExpressionProps(layerIndices[i]);
-            if (props && props.success) {
-                allPropsPerLayer.push(props.properties);
-            } else {
-                return { error: "レイヤー " + layerIndices[i] + " の処理でエラーが発生しました。" };
+            var propResult = listVisibleExpressionProps(layerIndices[i]);
+            if (propResult.indexOf("ERROR:") === 0) {
+                return propResult;
             }
-        }
 
-        if (allPropsPerLayer.length === 0) {
-            return { success: true, properties: [] };
+            // SUCCESS: 以降をパース
+            var parts = propResult.split("|");
+            var propNames = [];
+            for (var j = 1; j < parts.length; j += 2) {
+                if (parts[j].indexOf("PROP:") === 0) {
+                    propNames.push(parts[j].substring(5));
+                }
+            }
+            allPropsPerLayer.push(propNames);
         }
 
         // 共通プロパティを抽出
-        var commonProps = allPropsPerLayer[0];
-
-        for (var j = 1; j < allPropsPerLayer.length; j++) {
-            var currentLayerProps = allPropsPerLayer[j];
-            var newCommonProps = [];
-
-            for (var k = 0; k < commonProps.length; k++) {
-                var commonProp = commonProps[k];
-                var found = false;
-
-                for (var l = 0; l < currentLayerProps.length; l++) {
-                    if (currentLayerProps[l].name === commonProp.name) {
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (found) {
-                    newCommonProps.push(commonProp);
+        var commonNames = allPropsPerLayer[0];
+        for (var k = 1; k < allPropsPerLayer.length; k++) {
+            var newCommon = [];
+            for (var l = 0; l < commonNames.length; l++) {
+                if (allPropsPerLayer[k].indexOf(commonNames[l]) !== -1) {
+                    newCommon.push(commonNames[l]);
                 }
             }
-
-            commonProps = newCommonProps;
+            commonNames = newCommon;
         }
 
-        // 文字列形式で返す（main.jsとの互換性）
+        // 文字列形式で返す
         var output = "SUCCESS:";
-        for (var m = 0; m < commonProps.length; m++) {
-            if (m > 0) output += "|";
-            output += "PROP:" + commonProps[m].name;
-            output += "|EXPR:" + (commonProps[m].hasExpression ? "1" : "0");
+        for (var m = 0; m < commonNames.length; m++) {
+            output += "|PROP:" + commonNames[m];
+            output += "|EXPR:0"; // 共通プロパティの場合、エクスプレッション状態は不明
         }
 
         return output;
 
-    }, "共通プロパティの取得");
+    } catch (e) {
+        logError("共通プロパティの取得", e);
+        return "ERROR:" + e.toString();
+    }
 }
 
 // エクスプレッションの内容を取得
@@ -295,62 +265,26 @@ function getExpressionContent(layerIndex, propertyName) {
             return "ERROR:レイヤーが見つかりません。";
         }
 
-        var prop = findPropertyByName(layer, propertyName);
-        if (!prop) {
-            return "ERROR:プロパティが見つかりません。";
+        // キャッシュされたプロパティから検索
+        for (var i = 0; i < cachedProps.length; i++) {
+            try {
+                var prop = cachedProps[i];
+                if (getPropertyFullPath(prop) === propertyName) {
+                    if (prop.expression && prop.expression !== "") {
+                        return "SUCCESS:" + prop.expression;
+                    } else {
+                        return "SUCCESS:";
+                    }
+                }
+            } catch (e) { }
         }
 
-        if (prop.expression && prop.expression !== "") {
-            return "SUCCESS:" + prop.expression;
-        } else {
-            return "SUCCESS:";
-        }
+        return "ERROR:プロパティが見つかりません。";
+
     } catch (e) {
         logError("エクスプレッション内容の取得", e);
         return "ERROR:" + e.toString();
     }
-}
-
-// プロパティ名からプロパティを検索
-function findPropertyByName(layer, propName) {
-    var parts = propName.split(" → ");
-
-    function scanGroup(group) {
-        if (!group) return null;
-
-        for (var i = 1; i <= group.numProperties; i++) {
-            try {
-                var prop = group.property(i);
-                if (!prop) continue;
-
-                // 完全なパスを構築して比較
-                var path = getPropertyFullPath(prop);
-                if (path === propName) {
-                    return prop;
-                }
-
-                // グループの場合は再帰的に検索
-                if (prop.numProperties > 0 && !(prop instanceof Property)) {
-                    var found = scanGroup(prop);
-                    if (found) return found;
-                }
-            } catch (e) { }
-        }
-        return null;
-    }
-
-    // 全グループをスキャン
-    var result = scanGroup(layer);
-
-    // エフェクトも検索
-    if (!result) {
-        var effects = layer.property("ADBE Effect Parade");
-        if (effects) {
-            result = scanGroup(effects);
-        }
-    }
-
-    return result;
 }
 
 // プロパティのフルパスを取得
@@ -390,19 +324,31 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
                     continue;
                 }
 
-                var prop = findPropertyByName(layer, propertyName);
-                if (!prop) {
+                // キャッシュされたプロパティから検索
+                var targetProp = null;
+                for (var j = 0; j < cachedProps.length; j++) {
+                    try {
+                        var cachedProp = cachedProps[j];
+                        if (getPropertyFullPath(cachedProp) === propertyName) {
+                            // 同じパスのプロパティを現在のレイヤーから取得
+                            targetProp = findMatchingPropInLayer(layer, cachedProp);
+                            break;
+                        }
+                    } catch (e) { }
+                }
+
+                if (!targetProp) {
                     errors.push(layer.name + ": プロパティが見つかりません");
                     continue;
                 }
 
-                if (!prop.canSetExpression) {
+                if (!targetProp.canSetExpression) {
                     errors.push(layer.name + ": エクスプレッションを設定できません");
                     continue;
                 }
 
-                prop.expression = expression;
-                prop.expressionEnabled = true;
+                targetProp.expression = expression;
+                targetProp.expressionEnabled = true;
                 successCount++;
 
             } catch (e) {
@@ -430,73 +376,21 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
     }
 }
 
-// パスからプロパティを取得
-function getPropertyByPath(layer, path) {
-    try {
-        var target = layer;
-        for (var i = 0; i < path.length; i++) {
-            target = target.property(path[i]);
-            if (!target) return null;
-        }
-        return target;
-    } catch (e) {
-        return null;
+// レイヤー内で一致するプロパティを検索
+function findMatchingPropInLayer(layer, sourceProp) {
+    var path = [];
+    var p = sourceProp;
+
+    while (p && p.parentProperty && !(p.parentProperty instanceof AVLayer)) {
+        path.unshift(p.name);
+        p = p.parentProperty;
     }
-}
 
-// エクスプレッションの検証
-function validateExpression(expression) {
-    return safeExecute(function () {
-        // 基本的な構文チェック
-        var errors = [];
+    var target = layer;
+    for (var i = 0; i < path.length; i++) {
+        target = target.property(path[i]);
+        if (!target) return null;
+    }
 
-        // 括弧の対応チェック
-        var openBrackets = (expression.match(/\(/g) || []).length;
-        var closeBrackets = (expression.match(/\)/g) || []).length;
-        if (openBrackets !== closeBrackets) {
-            errors.push("括弧の対応が取れていません");
-        }
-
-        var openSquare = (expression.match(/\[/g) || []).length;
-        var closeSquare = (expression.match(/\]/g) || []).length;
-        if (openSquare !== closeSquare) {
-            errors.push("角括弧の対応が取れていません");
-        }
-
-        var openCurly = (expression.match(/\{/g) || []).length;
-        var closeCurly = (expression.match(/\}/g) || []).length;
-        if (openCurly !== closeCurly) {
-            errors.push("波括弧の対応が取れていません");
-        }
-
-        // 基本的なキーワードチェック
-        var forbiddenKeywords = ['eval', 'alert', 'confirm'];
-        for (var i = 0; i < forbiddenKeywords.length; i++) {
-            if (expression.indexOf(forbiddenKeywords[i]) !== -1) {
-                errors.push("使用できないキーワードが含まれています: " + forbiddenKeywords[i]);
-            }
-        }
-
-        return {
-            success: true,
-            valid: errors.length === 0,
-            errors: errors
-        };
-
-    }, "エクスプレッション検証");
-}
-
-// 公開API
-var ExpressionControlAPI = {
-    getSelectedLayers: getSelectedLayers,
-    listVisibleExpressionProps: listVisibleExpressionProps,
-    listCommonExpressionProps: listCommonExpressionProps,
-    listExistingExpressions: listExistingExpressions,
-    applyExpression: applyExpression,
-    validateExpression: validateExpression
-};
-
-// CEPから呼び出し可能にする
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ExpressionControlAPI;
+    return target;
 }

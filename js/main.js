@@ -9,6 +9,25 @@ let selectedLayers = [];
 let allProperties = [];
 let currentProperty = null;
 
+// デバッグ情報表示（画面上に表示） - 先に定義
+function showDebug(message) {
+    const debugInfo = document.getElementById('debugInfo');
+    if (debugInfo) {
+        const time = new Date().toLocaleTimeString();
+        debugInfo.innerHTML = `[${time}] ${message}<br>` + debugInfo.innerHTML;
+    }
+    console.log('DEBUG:', message);
+}
+
+// ステータス更新
+function updateStatus(message) {
+    const statusText = document.getElementById('statusText');
+    if (statusText) {
+        statusText.textContent = message;
+    }
+    console.log('Status:', message);
+}
+
 // Monaco Environment設定（ローカル Blob Worker）
 window.MonacoEnvironment = {
     getWorkerUrl: function (moduleId, label) {
@@ -34,9 +53,51 @@ window.MonacoEnvironment = {
 // 初期化
 document.addEventListener('DOMContentLoaded', function () {
     console.log('🚀 Initializing Expression Control...');
+    console.log('DOM is ready');
+
+    // デバッグ: ボタンの存在確認
+    const testBtn = document.getElementById('thisLayersBtn');
+    console.log('Button exists at init:', !!testBtn);
+
     initializeCSInterface();
-    initializeMonacoEditor();
+
+    // Monaco Editor は loader.js の読み込み完了を待つ
+    if (window.monacoLoaderReady && typeof require !== 'undefined') {
+        console.log('✅ loader.js ready, initializing Monaco...');
+        initializeMonacoEditor();
+    } else {
+        console.log('⏳ Waiting for loader.js...');
+        showDebug('⏳ Monaco Editor を読み込み中...');
+
+        // loader.js が読み込まれるまで待機
+        let checkCount = 0;
+        let checkInterval = setInterval(function () {
+            checkCount++;
+            console.log(`Checking loader.js... attempt ${checkCount}`);
+
+            if (window.monacoLoaderReady && typeof require !== 'undefined') {
+                clearInterval(checkInterval);
+                console.log('✅ loader.js loaded, initializing Monaco...');
+                showDebug('✅ Monaco Editor 読み込み完了');
+                initializeMonacoEditor();
+            }
+        }, 100);
+
+        // 10秒でタイムアウト
+        setTimeout(function () {
+            if (!window.monacoLoaderReady || typeof require === 'undefined') {
+                clearInterval(checkInterval);
+                console.error('❌ loader.js failed to load');
+                console.error('monacoLoaderReady:', window.monacoLoaderReady);
+                console.error('typeof require:', typeof require);
+                showDebug('❌ Monaco Editor の読み込みに失敗しました');
+            }
+        }, 10000);
+    }
+
+    console.log('About to setup event listeners...');
     setupEventListeners();
+    console.log('Event listeners setup complete');
 });
 
 // CSInterface初期化
@@ -52,11 +113,24 @@ function initializeCSInterface() {
     // ExtendScriptをロード
     csInterface.evalScript(`$.evalFile("${jsxFile}")`, function (result) {
         console.log('ExtendScript load result:', result);
+        showDebug(`📜 JSX読込結果: ${result || 'success'}`);
+
         if (result === 'undefined' || result === '') {
             updateStatus('ExtendScript loaded ✓');
+
+            // テスト: 関数が定義されているか確認
+            csInterface.evalScript('typeof getSelectedLayers', function (typeResult) {
+                console.log('getSelectedLayers type:', typeResult);
+                showDebug(`✅ getSelectedLayers: ${typeResult}`);
+
+                if (typeResult !== 'function') {
+                    showDebug('❌ JSX関数が定義されていません！');
+                }
+            });
         } else {
             console.error('ExtendScript error:', result);
             updateStatus('ExtendScript error');
+            showDebug(`❌ JSX読込エラー: ${result}`);
         }
     });
 }
@@ -191,12 +265,26 @@ function initializeMonacoEditor() {
 
 // イベントリスナー設定
 function setupEventListeners() {
+    console.log('Setting up event listeners...');
+
     const thisLayersBtn = document.getElementById('thisLayersBtn');
     const propertySelect = document.getElementById('propertySelect');
     const applyBtn = document.getElementById('applyBtn');
 
+    console.log('thisLayersBtn:', thisLayersBtn);
+    console.log('propertySelect:', propertySelect);
+    console.log('applyBtn:', applyBtn);
+
     if (thisLayersBtn) {
-        thisLayersBtn.addEventListener('click', refreshLayers);
+        console.log('✅ Adding click listener to thisLayersBtn');
+        thisLayersBtn.addEventListener('click', function () {
+            console.log('🖱️ thisLayersBtn clicked!');
+            showDebug('🖱️ This Layer(s) ボタンがクリックされました');
+            refreshLayers();
+        });
+    } else {
+        console.error('❌ thisLayersBtn not found!');
+        showDebug('❌ This Layer(s) ボタンが見つかりません');
     }
 
     if (propertySelect) {
@@ -211,6 +299,7 @@ function setupEventListeners() {
 // レイヤースキャン
 function refreshLayers() {
     console.log('🔍 Scanning layers...');
+    showDebug('🔍 refreshLayers() が呼ばれました');
     updateStatus('レイヤー情報を取得中...');
 
     const layerInfo = document.getElementById('layerInfo');
@@ -279,16 +368,33 @@ function loadProperties() {
     if (selectedLayers.length === 0) return;
 
     console.log('📋 Loading properties...');
+    console.log('Selected layers:', selectedLayers);
     updateStatus('プロパティを読み込み中...');
 
     if (selectedLayers.length === 1) {
         const layerIndex = selectedLayers[0].index;
+        console.log('Calling listVisibleExpressionProps with index:', layerIndex);
+        showDebug(`📞 JSX呼出: listVisibleExpressionProps(${layerIndex})`);
         csInterface.evalScript(`listVisibleExpressionProps(${layerIndex})`, function (result) {
+            console.log('Raw result from listVisibleExpressionProps:', result);
+            console.log('Result type:', typeof result);
+            console.log('Result length:', result ? result.length : 'null');
+            showDebug(`📥 JSX応答: ${result ? result.substring(0, 100) : 'null'}`);
+
+            // 完全なデータをコンソールに出力
+            console.log('=== FULL JSX RESPONSE ===');
+            console.log(result);
+            console.log('=== END ===');
+
             handlePropertiesResult(result);
         });
     } else {
         const layerIndices = selectedLayers.map(l => l.index).join(',');
+        console.log('Calling listCommonExpressionProps with indices:', layerIndices);
+        showDebug(`📞 JSX呼出: listCommonExpressionProps([${layerIndices}])`);
         csInterface.evalScript(`listCommonExpressionProps([${layerIndices}])`, function (result) {
+            console.log('Raw result from listCommonExpressionProps:', result);
+            showDebug(`📥 JSX応答: ${result ? result.substring(0, 50) + '...' : 'null'}`);
             handlePropertiesResult(result);
         });
     }
@@ -297,22 +403,40 @@ function loadProperties() {
 // プロパティ結果処理
 function handlePropertiesResult(result) {
     console.log('Properties result:', result);
+    console.log('Result starts with ERROR:', result.indexOf('ERROR:') === 0);
+    console.log('Result starts with SUCCESS:', result.indexOf('SUCCESS:') === 0);
+
+    if (!result || result === 'undefined' || result === '') {
+        console.error('❌ Empty or undefined result from JSX');
+        updateStatus('エラー: JSX から結果が返されませんでした');
+        return;
+    }
 
     if (result.indexOf('ERROR:') === 0) {
-        updateStatus('エラー: ' + result.substring(6));
+        const errorMsg = result.substring(6);
+        console.error('❌ JSX Error:', errorMsg);
+        updateStatus('エラー: ' + errorMsg);
         return;
     }
 
     if (result.indexOf('SUCCESS:') === 0) {
+        console.log('✅ SUCCESS detected, parsing...');
         const parts = result.split('|');
+        console.log('Split parts count:', parts.length);
+        console.log('First 10 parts:', parts.slice(0, 10));
         allProperties = [];
 
         let startIndex = 1;
         if (parts[1] && parts[1].indexOf('DEBUG:') === 0) {
+            console.log('DEBUG marker found, starting from index 2');
             startIndex = 2;
         }
 
+        console.log('Starting to parse from index:', startIndex);
+
         for (let i = startIndex; i < parts.length; i += 2) {
+            console.log(`Parsing index ${i}: "${parts[i]}" and ${i + 1}: "${parts[i + 1]}"`);
+
             if (i + 1 < parts.length &&
                 parts[i].indexOf('PROP:') === 0 &&
                 parts[i + 1].indexOf('EXPR:') === 0) {
@@ -320,15 +444,21 @@ function handlePropertiesResult(result) {
                 const propName = parts[i].substring(5);
                 const hasExpression = parts[i + 1].substring(5) === '1';
 
+                console.log(`✅ Found property: ${propName}, hasExpr: ${hasExpression}`);
+
                 allProperties.push({
                     name: propName,
                     hasExpression: hasExpression,
                     layerIndex: selectedLayers.length === 1 ? selectedLayers[0].index : -1
                 });
+            } else {
+                console.log(`❌ Skipping index ${i}, pattern mismatch`);
             }
         }
 
         console.log('Parsed properties:', allProperties.length);
+        console.log('All properties:', allProperties);
+        showDebug(`📋 ${allProperties.length}個のプロパティを解析しました`);
         updatePropertyList();
         updateStatus(`${allProperties.length}個のプロパティを読み込みました`);
     }
@@ -434,15 +564,6 @@ function applyExpression() {
             }
         }
     );
-}
-
-// ステータス更新
-function updateStatus(message) {
-    const statusText = document.getElementById('statusText');
-    if (statusText) {
-        statusText.textContent = message;
-    }
-    console.log('Status:', message);
 }
 
 console.log('📝 Expression Control loaded');

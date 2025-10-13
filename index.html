@@ -17,7 +17,11 @@
     ">
 
     <!-- Monaco Editor (ローカル) -->
-    <script src="./lib/vs/loader.js"></script>
+    <script>
+        // Monaco Editor の loader.js が読み込まれたかを追跡
+        window.monacoLoaderReady = false;
+    </script>
+    <script src="./lib/vs/loader.js" onload="window.monacoLoaderReady = true;"></script>
 
     <!-- Adobe CEP Interface -->
     <script src="./js/CSInterface.js"></script>
@@ -118,8 +122,12 @@
 
     <!-- This Layer(s) ボタン -->
     <div class="section">
-        <button id="thisLayersBtn">This Layer(s)</button>
+        <button id="thisLayersBtn"
+            onclick="if(typeof refreshLayers === 'function') { refreshLayers(); } else { alert('refreshLayers is not defined'); }">This
+            Layer(s)</button>
         <div id="layerInfo" class="info-text">レイヤーを選択してボタンをクリック</div>
+        <div id="debugInfo" style="font-size: 10px; color: #666; margin-top: 5px; max-height: 100px; overflow-y: auto;">
+        </div>
     </div>
 
     <!-- Set Expressions ドロップダウン -->
