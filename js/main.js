@@ -9,29 +9,30 @@ let selectedLayers = [];
 let allProperties = [];
 let currentProperty = null;
 
-// Monaco Environment設定（Blob Worker）
+// Monaco Environment設定（ローカル Blob Worker）
 window.MonacoEnvironment = {
-    getWorker: function (moduleId, label) {
-        const getWorkerModule = (moduleUrl) => {
-            const workerUrl = `https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/${moduleUrl}`;
-            return new Worker(URL.createObjectURL(new Blob([`
-                self.MonacoEnvironment = { baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/' };
-                importScripts('${workerUrl}');
-            `], { type: 'text/javascript' })));
-        };
+    getWorkerUrl: function (moduleId, label) {
+        // 拡張機能のルートパスを取得
+        const extensionPath = window.location.href.replace(/\/[^\/]*$/, '');
 
-        switch (label) {
-            case 'typescript':
-            case 'javascript':
-                return getWorkerModule('language/typescript/ts.worker.js');
-            default:
-                return getWorkerModule('editor/editor.worker.js');
+        // Workerファイルのパスを構築
+        let workerPath;
+        if (label === 'typescript' || label === 'javascript') {
+            workerPath = extensionPath + '/lib/vs/language/typescript/ts.worker.js';
+        } else {
+            workerPath = extensionPath + '/lib/vs/editor/editor.worker.js';
         }
+
+        // Blob URLで返す（file://プロトコルでWorkerを動作させるため）
+        return URL.createObjectURL(new Blob([`
+            self.MonacoEnvironment = { baseUrl: '${extensionPath}/lib/vs/' };
+            importScripts('${workerPath}');
+        `], { type: 'text/javascript' }));
     }
 };
 
 // 初期化
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('🚀 Initializing Expression Control...');
     initializeCSInterface();
     initializeMonacoEditor();
@@ -41,15 +42,15 @@ document.addEventListener('DOMContentLoaded', function() {
 // CSInterface初期化
 function initializeCSInterface() {
     csInterface = new CSInterface();
-    
+
     // ExtendScriptファイルのパスを設定
     const extensionRoot = csInterface.getSystemPath(SystemPath.EXTENSION);
     const jsxFile = extensionRoot + '/jsx/expressionControl.jsx';
-    
+
     console.log('Loading ExtendScript from:', jsxFile);
-    
+
     // ExtendScriptをロード
-    csInterface.evalScript(`$.evalFile("${jsxFile}")`, function(result) {
+    csInterface.evalScript(`$.evalFile("${jsxFile}")`, function (result) {
         console.log('ExtendScript load result:', result);
         if (result === 'undefined' || result === '') {
             updateStatus('ExtendScript loaded ✓');
@@ -62,7 +63,8 @@ function initializeCSInterface() {
 
 // Monaco Editor初期化
 function initializeMonacoEditor() {
-    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+    // ローカルの Monaco Editor を使用
+    require.config({ paths: { vs: './lib/vs' } });
 
     require(['vs/editor/editor.main'], function () {
         console.log('✅ Monaco Editor loaded');
@@ -210,12 +212,12 @@ function setupEventListeners() {
 function refreshLayers() {
     console.log('🔍 Scanning layers...');
     updateStatus('レイヤー情報を取得中...');
-    
+
     const layerInfo = document.getElementById('layerInfo');
     layerInfo.textContent = '🔄 レイヤー情報を更新中...';
 
     // まずコンポジションがアクティブか確認
-    csInterface.evalScript('app.project.activeItem ? "OK" : "NO_COMP"', function(testResult) {
+    csInterface.evalScript('app.project.activeItem ? "OK" : "NO_COMP"', function (testResult) {
         console.log('Comp check:', testResult);
 
         if (testResult === 'NO_COMP') {
@@ -225,7 +227,7 @@ function refreshLayers() {
         }
 
         // レイヤー情報を取得
-        csInterface.evalScript('getSelectedLayers()', function(result) {
+        csInterface.evalScript('getSelectedLayers()', function (result) {
             console.log('getSelectedLayers result:', result);
 
             try {
@@ -281,12 +283,12 @@ function loadProperties() {
 
     if (selectedLayers.length === 1) {
         const layerIndex = selectedLayers[0].index;
-        csInterface.evalScript(`listVisibleExpressionProps(${layerIndex})`, function(result) {
+        csInterface.evalScript(`listVisibleExpressionProps(${layerIndex})`, function (result) {
             handlePropertiesResult(result);
         });
     } else {
         const layerIndices = selectedLayers.map(l => l.index).join(',');
-        csInterface.evalScript(`listCommonExpressionProps([${layerIndices}])`, function(result) {
+        csInterface.evalScript(`listCommonExpressionProps([${layerIndices}])`, function (result) {
             handlePropertiesResult(result);
         });
     }
@@ -366,9 +368,9 @@ function onPropertySelected(event) {
 
     // 既存のエクスプレッションを読み込み
     if (currentProperty.hasExpression && currentProperty.layerIndex !== -1) {
-        csInterface.evalScript(`getExpressionContent(${currentProperty.layerIndex}, "${currentProperty.name}")`, function(result) {
+        csInterface.evalScript(`getExpressionContent(${currentProperty.layerIndex}, "${currentProperty.name}")`, function (result) {
             console.log('Expression content result:', result);
-            
+
             if (result.indexOf('SUCCESS:') === 0) {
                 const expression = result.substring(8);
                 if (monacoEditor) {
@@ -411,7 +413,7 @@ function applyExpression() {
 
     csInterface.evalScript(
         `applyExpressionToLayers([${layerIndices}], "${currentProperty.name}", ${escapedExpression})`,
-        function(result) {
+        function (result) {
             console.log('Apply result:', result);
 
             try {

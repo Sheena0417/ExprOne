@@ -2,14 +2,29 @@
 
 After Effects用のExpression Control CEP拡張機能です。Monaco Editorを統合したモダンなUIでエクスプレッションの編集・管理ができます。
 
+## 🎉 最新情報（2025-10-13）
+
+**✅ Monaco Editor が CEP 環境で正常に動作するようになりました！**
+
+- CDN ではなく**ローカルファイル**を使用（オフラインでも動作）
+- file:// プロトコルでの Worker 動作に対応
+- CSP（Content Security Policy）を最適化
+
+詳細は [`SETUP_GUIDE.md`](./SETUP_GUIDE.md) を参照してください。
+
 ## 🚀 特徴
 
 - **Monaco Editor統合** - シンタックスハイライト、エラー検出、オートコンプリート
-- **モダンなUI** - ダーク/ライトテーマ、レスポンシブデザイン  
+  - After Effects Expression 専用の言語定義
+  - `thisComp`, `wiggle`, `ease` など AE 固有の関数・キーワードに対応
+  - スニペット機能（パラメータ補完）
+- **モダンなUI** - ダークテーマ、レスポンシブデザイン  
 - **レイヤープロパティスキャン** - エクスプレッション対応プロパティの自動検出
-- **既存エクスプレッション管理** - 設定済みエクスプレッションの一覧・編集
+  - Transform, Effects, Text など全プロパティに対応
+  - 3D レイヤー、レイヤースタイルにも対応
+- **既存エクスプレッション管理** - 設定済みエクスプレッションの読み込み・編集
 - **バッチ適用** - 複数レイヤーへの一括適用
-- **エクスプレッション検証** - リアルタイム構文チェック
+- **エクスプレッション検証** - 基本的な構文チェック
 
 ## 📦 インストール方法
 
@@ -104,10 +119,19 @@ npm run uninstall-debug
 
 ## 🔍 デバッグ
 
-拡張機能のデバッグはChromeの開発者ツールで行えます:
+拡張機能のデバッグは以下の方法で行えます：
+
+### 方法 1: パネル上で直接
+1. パネル上で**右クリック**
+2. "デバッグ" → "デベロッパーツール" を選択
+
+### 方法 2: リモートデバッグ
 1. `http://localhost:8092` にアクセス
-2. Expression Controlをクリック
+2. Expression Control をクリック
 3. 開発者ツールが開きます
+
+### 動作確認
+[`TEST_CHECKLIST.md`](./TEST_CHECKLIST.md) に詳細なテスト手順があります。
 
 ## 📝 ライセンス
 
@@ -117,6 +141,23 @@ MIT License
 
 Issues、Pull Requestsをお待ちしています。
 
+## 📚 ドキュメント
+
+- [`SETUP_GUIDE.md`](./SETUP_GUIDE.md) - Monaco Editor の統合と設定
+- [`TEST_CHECKLIST.md`](./TEST_CHECKLIST.md) - 動作確認手順
+- [`MONACO_SETUP.md`](./MONACO_SETUP.md) - Monaco Editor の技術詳細
+
 ## 📞 サポート
 
 問題が発生した場合は、After Effectsのバージョンとエラーメッセージを含めてIssueを作成してください。
+
+### トラブルシューティング
+
+**Monaco Editor が表示されない**
+→ [`SETUP_GUIDE.md`](./SETUP_GUIDE.md) のトラブルシューティングを参照
+
+**Worker エラーが出る**
+→ `lib/vs/` フォルダにファイルがあるか確認
+
+**エクスプレッションが適用されない**
+→ デベロッパーツールのコンソールでエラーを確認
