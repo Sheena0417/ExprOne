@@ -10,13 +10,14 @@ let allProperties = [];
 let currentProperty = null;
 
 // デバッグ情報表示（画面上に表示） - 先に定義
+// ※必要に応じてコメント解除してください
 function showDebug(message) {
-    const debugInfo = document.getElementById('debugInfo');
-    if (debugInfo) {
-        const time = new Date().toLocaleTimeString();
-        debugInfo.innerHTML = `[${time}] ${message}<br>` + debugInfo.innerHTML;
-    }
-    console.log('DEBUG:', message);
+    // const debugInfo = document.getElementById('debugInfo');
+    // if (debugInfo) {
+    //     const time = new Date().toLocaleTimeString();
+    //     debugInfo.innerHTML = `[${time}] ${message}<br>` + debugInfo.innerHTML;
+    // }
+    console.log('DEBUG:', message);  // コンソールには引き続き出力
 }
 
 // ステータス更新

@@ -211,17 +211,16 @@
 </head>
 
 <body>
-    <h2 style="margin-bottom: 15px; font-size: 20px; background: red; color: white; padding: 10px;">🔴 NEW MONACO EDITOR
-        VERSION 🔴</h2>
-
     <!-- This Layer(s) ボタン -->
     <div class="section">
         <button id="thisLayersBtn"
             onclick="if(typeof refreshLayers === 'function') { refreshLayers(); } else { alert('refreshLayers is not defined'); }">This
             Layer(s)</button>
         <div id="layerInfo" class="info-text">レイヤーを選択してボタンをクリック</div>
+        <!-- デバッグ用ログ（必要に応じてコメント解除）
         <div id="debugInfo" style="font-size: 10px; color: #666; margin-top: 5px; max-height: 100px; overflow-y: auto;">
         </div>
+        -->
     </div>
 
     <!-- Set Expressions カスタムドロップダウン -->
