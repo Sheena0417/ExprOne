@@ -569,8 +569,12 @@ function selectCustomProperty(propertyData) {
 
     // ボタンのテキストを更新
     const button = document.getElementById('customSelectButton');
-    button.textContent = currentProperty.name + (currentProperty.hasExpression ? ' ✓' : '');
-    button.title = currentProperty.name;
+    if (currentProperty.hasExpression) {
+        button.textContent = '● ' + currentProperty.name;
+    } else {
+        button.textContent = currentProperty.name;
+    }
+    button.title = currentProperty.name + (currentProperty.hasExpression ? ' (エクスプレッション記入済み)' : '');
 
     // 選択状態をハイライト
     document.querySelectorAll('.custom-select-option').forEach(opt => {
@@ -618,8 +622,16 @@ function updatePropertyList() {
     allProperties.forEach(prop => {
         const optionDiv = document.createElement('div');
         optionDiv.className = 'custom-select-option';
-        optionDiv.textContent = prop.name + (prop.hasExpression ? ' ✓' : '');
-        optionDiv.title = prop.name;
+
+        // エクスプレッション記入済みの場合、クラスとアイコンを追加
+        if (prop.hasExpression) {
+            optionDiv.classList.add('has-expression');
+            optionDiv.textContent = '● ' + prop.name;
+        } else {
+            optionDiv.textContent = prop.name;
+        }
+
+        optionDiv.title = prop.name + (prop.hasExpression ? ' (エクスプレッション記入済み)' : '');
         optionDiv.dataset.propertyName = prop.name;
         optionDiv.dataset.property = JSON.stringify(prop);
 
