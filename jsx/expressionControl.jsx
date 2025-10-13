@@ -404,3 +404,63 @@ function findMatchingPropInLayer(layer, sourceProp) {
 
     return target;
 }
+
+// Get project information for autocompletion
+function getProjectInfo() {
+    try {
+        var compositions = [];
+        var layers = [];
+        var effects = [];
+
+        // Get all compositions in the project
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var item = app.project.item(i);
+            if (item instanceof CompItem) {
+                compositions.push(item.name);
+            }
+        }
+
+        // Get layers from active composition
+        var comp = app.project.activeItem;
+        if (comp instanceof CompItem) {
+            for (var j = 1; j <= comp.numLayers; j++) {
+                layers.push(comp.layer(j).name);
+            }
+
+            // Get effects from selected layers
+            if (comp.selectedLayers.length > 0) {
+                var layer = comp.selectedLayers[0];
+                var effectsGroup = layer.property("ADBE Effect Parade");
+                if (effectsGroup) {
+                    for (var k = 1; k <= effectsGroup.numProperties; k++) {
+                        effects.push(effectsGroup.property(k).name);
+                    }
+                }
+            }
+        }
+
+        // Build JSON string manually (ExtendScript compatibility)
+        var result = "SUCCESS:COMPS:";
+        for (var c = 0; c < compositions.length; c++) {
+            if (c > 0) result += ",";
+            result += compositions[c].replace(/,/g, "\\,");
+        }
+
+        result += "|LAYERS:";
+        for (var l = 0; l < layers.length; l++) {
+            if (l > 0) result += ",";
+            result += layers[l].replace(/,/g, "\\,");
+        }
+
+        result += "|EFFECTS:";
+        for (var e = 0; e < effects.length; e++) {
+            if (e > 0) result += ",";
+            result += effects[e].replace(/,/g, "\\,");
+        }
+
+        return result;
+    } catch (e) {
+        logError("Get Project Info", e);
+        return "ERROR:" + e.toString();
+    }
+}

@@ -8,6 +8,11 @@ let monacoEditor;
 let selectedLayers = [];
 let allProperties = [];
 let currentProperty = null;
+let projectInfo = {
+    compositions: [],
+    layers: [],
+    effects: []
+};
 
 // デバッグ情報表示（画面上に表示） - 先に定義
 // ※必要に応じてコメント解除してください
@@ -92,6 +97,172 @@ function loadMonacoLoader() {
 
     document.head.appendChild(script);
     console.log('📝 loader.js script tag added to document');
+}
+
+// Register completion provider for AE expressions
+function registerCompletionProvider() {
+    monaco.languages.registerCompletionItemProvider('ae-expression', {
+        provideCompletionItems: function (model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            const suggestions = [];
+
+            // Basic AE keywords
+            suggestions.push(
+                {
+                    label: 'thisComp',
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: 'thisComp',
+                    documentation: 'Current composition',
+                    range: range
+                },
+                {
+                    label: 'thisLayer',
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: 'thisLayer',
+                    documentation: 'Current layer',
+                    range: range
+                },
+                {
+                    label: 'thisProperty',
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: 'thisProperty',
+                    documentation: 'Current property',
+                    range: range
+                },
+                {
+                    label: 'time',
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: 'time',
+                    documentation: 'Current time in seconds',
+                    range: range
+                },
+                {
+                    label: 'value',
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: 'value',
+                    documentation: 'Original property value',
+                    range: range
+                },
+                {
+                    label: 'index',
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: 'index',
+                    documentation: 'Layer index',
+                    range: range
+                }
+            );
+
+            // AE functions
+            suggestions.push(
+                {
+                    label: 'wiggle',
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: 'wiggle(${1:freq}, ${2:amp})',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Random wiggle motion: wiggle(frequency, amplitude)',
+                    range: range
+                },
+                {
+                    label: 'linear',
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: 'linear(${1:t}, ${2:tMin}, ${3:tMax}, ${4:value1}, ${5:value2})',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Linear interpolation',
+                    range: range
+                },
+                {
+                    label: 'ease',
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: 'ease(${1:t}, ${2:tMin}, ${3:tMax}, ${4:value1}, ${5:value2})',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Ease interpolation',
+                    range: range
+                },
+                {
+                    label: 'easeIn',
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: 'easeIn(${1:t}, ${2:tMin}, ${3:tMax}, ${4:value1}, ${5:value2})',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Ease-in interpolation',
+                    range: range
+                },
+                {
+                    label: 'easeOut',
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: 'easeOut(${1:t}, ${2:tMin}, ${3:tMax}, ${4:value1}, ${5:value2})',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Ease-out interpolation',
+                    range: range
+                },
+                {
+                    label: 'loopIn',
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: 'loopIn("${1:type}")',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Loop keyframes before current time',
+                    range: range
+                },
+                {
+                    label: 'loopOut',
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: 'loopOut("${1:type}")',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Loop keyframes after current time',
+                    range: range
+                },
+                {
+                    label: 'clamp',
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: 'clamp(${1:value}, ${2:min}, ${3:max})',
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: 'Clamp value between min and max',
+                    range: range
+                }
+            );
+
+            // Dynamic suggestions: Compositions
+            projectInfo.compositions.forEach(comp => {
+                suggestions.push({
+                    label: `comp("${comp}")`,
+                    kind: monaco.languages.CompletionItemKind.Reference,
+                    insertText: `comp("${comp}")`,
+                    documentation: `Composition: ${comp}`,
+                    range: range
+                });
+            });
+
+            // Dynamic suggestions: Layers
+            projectInfo.layers.forEach(layer => {
+                suggestions.push({
+                    label: `layer("${layer}")`,
+                    kind: monaco.languages.CompletionItemKind.Reference,
+                    insertText: `layer("${layer}")`,
+                    documentation: `Layer: ${layer}`,
+                    range: range
+                });
+            });
+
+            // Dynamic suggestions: Effects
+            projectInfo.effects.forEach(effect => {
+                suggestions.push({
+                    label: `effect("${effect}")`,
+                    kind: monaco.languages.CompletionItemKind.Reference,
+                    insertText: `effect("${effect}")`,
+                    documentation: `Effect: ${effect}`,
+                    range: range
+                });
+            });
+
+            return { suggestions: suggestions };
+        }
+    });
 }
 
 // Monaco Environment設定（ローカル Blob Worker）
@@ -236,59 +407,8 @@ function initializeMonacoEditor() {
             }
         });
 
-        // オートコンプリート
-        monaco.languages.registerCompletionItemProvider('ae-expression', {
-            provideCompletionItems: function (model, position) {
-                const word = model.getWordUntilPosition(position);
-                const range = {
-                    startLineNumber: position.lineNumber,
-                    endLineNumber: position.lineNumber,
-                    startColumn: word.startColumn,
-                    endColumn: word.endColumn
-                };
-
-                const suggestions = [
-                    {
-                        label: 'wiggle',
-                        kind: monaco.languages.CompletionItemKind.Function,
-                        insertText: 'wiggle(${1:freq}, ${2:amp})',
-                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                        documentation: 'ランダムな揺れを生成',
-                        range: range
-                    },
-                    {
-                        label: 'thisComp',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'thisComp',
-                        documentation: '現在のコンポジション',
-                        range: range
-                    },
-                    {
-                        label: 'thisLayer',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'thisLayer',
-                        documentation: '現在のレイヤー',
-                        range: range
-                    },
-                    {
-                        label: 'time',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'time',
-                        documentation: '現在の時間（秒）',
-                        range: range
-                    },
-                    {
-                        label: 'value',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'value',
-                        documentation: 'プロパティの元の値',
-                        range: range
-                    }
-                ];
-
-                return { suggestions: suggestions };
-            }
-        });
+        // Register autocompletion provider
+        registerCompletionProvider();
 
         // エディター作成
         monacoEditor = monaco.editor.create(document.getElementById('monacoEditor'), {
@@ -430,6 +550,33 @@ function refreshLayers() {
     });
 }
 
+// Update project info for autocompletion
+function updateProjectInfo() {
+    csInterface.evalScript('getProjectInfo()', function (result) {
+        console.log('Project info result:', result);
+
+        if (result && result.indexOf('SUCCESS:') === 0) {
+            const data = result.substring(8); // Remove "SUCCESS:"
+            const parts = data.split('|');
+
+            parts.forEach(part => {
+                if (part.indexOf('COMPS:') === 0) {
+                    const comps = part.substring(6);
+                    projectInfo.compositions = comps ? comps.split(',').map(c => c.replace(/\\,/g, ',')) : [];
+                } else if (part.indexOf('LAYERS:') === 0) {
+                    const layers = part.substring(7);
+                    projectInfo.layers = layers ? layers.split(',').map(l => l.replace(/\\,/g, ',')) : [];
+                } else if (part.indexOf('EFFECTS:') === 0) {
+                    const effects = part.substring(8);
+                    projectInfo.effects = effects ? effects.split(',').map(e => e.replace(/\\,/g, ',')) : [];
+                }
+            });
+
+            console.log('Project info updated:', projectInfo);
+        }
+    });
+}
+
 // Load properties
 function loadProperties() {
     if (selectedLayers.length === 0) return;
@@ -437,6 +584,9 @@ function loadProperties() {
     console.log('📋 Loading properties...');
     console.log('Selected layers:', selectedLayers);
     updateStatus('Loading properties...');
+
+    // Update project info for autocompletion
+    updateProjectInfo();
 
     if (selectedLayers.length === 1) {
         const layerIndex = selectedLayers[0].index;
