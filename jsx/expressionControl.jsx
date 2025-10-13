@@ -308,7 +308,7 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
     try {
         var comp = app.project.activeItem;
         if (!(comp instanceof CompItem)) {
-            return JSON.stringify({ success: false, error: "アクティブなコンポジションがありません。" });
+            return '{"success":false,"error":"アクティブなコンポジションがありません。"}';
         }
 
         app.beginUndoGroup("Apply Expression to Layers");
@@ -324,21 +324,27 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
                     continue;
                 }
 
-                // キャッシュされたプロパティから検索
-                var targetProp = null;
-                for (var j = 0; j < cachedProps.length; j++) {
+                // プロパティパスを分割
+                var pathParts = propertyName.split(" → ");
+
+                // レイヤーからプロパティを検索
+                var targetProp = layer;
+                var found = true;
+                for (var j = 0; j < pathParts.length; j++) {
                     try {
-                        var cachedProp = cachedProps[j];
-                        if (getPropertyFullPath(cachedProp) === propertyName) {
-                            // 同じパスのプロパティを現在のレイヤーから取得
-                            targetProp = findMatchingPropInLayer(layer, cachedProp);
+                        targetProp = targetProp.property(pathParts[j]);
+                        if (!targetProp) {
+                            found = false;
                             break;
                         }
-                    } catch (e) { }
+                    } catch (e) {
+                        found = false;
+                        break;
+                    }
                 }
 
-                if (!targetProp) {
-                    errors.push(layer.name + ": プロパティが見つかりません");
+                if (!found || !targetProp) {
+                    errors.push(layer.name + ": プロパティ '" + propertyName + "' が見つかりません");
                     continue;
                 }
 
@@ -358,21 +364,25 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
 
         app.endUndoGroup();
 
-        var result = {
-            success: successCount > 0,
-            count: successCount,
-            total: layerIndices.length
-        };
+        // JSON文字列を手動で構築（ExtendScriptの互換性のため）
+        var resultStr = '{"success":' + (successCount > 0 ? 'true' : 'false') +
+            ',"count":' + successCount +
+            ',"total":' + layerIndices.length;
 
         if (errors.length > 0) {
-            result.error = errors.join("; ");
+            // エラーメッセージ内の特殊文字をエスケープ
+            var errorMsg = errors.join("; ").replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            resultStr += ',"error":"' + errorMsg + '"';
         }
 
-        return JSON.stringify(result);
+        resultStr += '}';
+
+        return resultStr;
 
     } catch (e) {
         logError("エクスプレッション適用", e);
-        return JSON.stringify({ success: false, error: e.toString() });
+        var errorMsg = e.toString().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return '{"success":false,"error":"' + errorMsg + '"}';
     }
 }
 

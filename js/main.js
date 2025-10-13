@@ -28,6 +28,71 @@ function updateStatus(message) {
     console.log('Status:', message);
 }
 
+// Monaco Editor の loader.js を動的に読み込む
+function loadMonacoLoader() {
+    console.log('📦 Loading Monaco loader.js...');
+    showDebug('📦 Monaco Editor を読み込み中...');
+
+    // Node.jsのrequireを一時的に退避して別名で保存
+    if (typeof window.require !== 'undefined') {
+        console.log('💾 Saving Node.js require as nodeRequire');
+        window.nodeRequire = window.require;
+        delete window.require;  // 完全に削除
+        delete window.module;   // moduleも削除（AMDとの競合を防ぐ）
+    }
+
+    var script = document.createElement('script');
+    script.src = './lib/vs/loader.js';
+    script.async = false;  // 同期的に読み込む
+
+    script.onload = function () {
+        console.log('✅ loader.js script loaded');
+
+        // onloadの直後にrequireをチェック（setTimeoutなし）
+        console.log('🔍 Immediate require check:');
+        console.log('  typeof window.require:', typeof window.require);
+        console.log('  window.require:', window.require);
+
+        // requireが定義されているかチェック
+        if (typeof window.require !== 'undefined' && window.require) {
+            console.log('  typeof window.require.config:', typeof window.require.config);
+
+            if (typeof window.require.config === 'function') {
+                console.log('✅ Monaco require.config is available!');
+                showDebug('✅ Monaco Loader 読み込み完了');
+
+                // Monaco requireを保存
+                window.monacoRequire = window.require;
+
+                initializeMonacoEditor();
+            } else {
+                console.error('❌ require exists but config is not a function');
+                console.error('  window.require:', window.require);
+                showDebug('❌ require.config が見つかりません');
+            }
+        } else {
+            console.error('❌ window.require is not defined after loading loader.js');
+            showDebug('❌ Monaco Loader の読み込みに失敗');
+
+            // フォールバック: グローバルスコープを確認
+            console.log('🔍 Checking global scope...');
+            console.log('  window keys:', Object.keys(window).filter(k => k.includes('require') || k.includes('define')));
+        }
+    };
+    script.onerror = function (error) {
+        console.error('❌ Failed to load loader.js:', error);
+        showDebug('❌ loader.js の読み込みに失敗しました');
+
+        // Node.jsのrequireを復元
+        if (window.nodeRequire) {
+            window.require = window.nodeRequire;
+        }
+    };
+
+    document.head.appendChild(script);
+    console.log('📝 loader.js script tag added to document');
+}
+
 // Monaco Environment設定（ローカル Blob Worker）
 window.MonacoEnvironment = {
     getWorkerUrl: function (moduleId, label) {
@@ -61,39 +126,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     initializeCSInterface();
 
-    // Monaco Editor は loader.js の読み込み完了を待つ
-    if (window.monacoLoaderReady && typeof require !== 'undefined') {
-        console.log('✅ loader.js ready, initializing Monaco...');
-        initializeMonacoEditor();
-    } else {
-        console.log('⏳ Waiting for loader.js...');
-        showDebug('⏳ Monaco Editor を読み込み中...');
-
-        // loader.js が読み込まれるまで待機
-        let checkCount = 0;
-        let checkInterval = setInterval(function () {
-            checkCount++;
-            console.log(`Checking loader.js... attempt ${checkCount}`);
-
-            if (window.monacoLoaderReady && typeof require !== 'undefined') {
-                clearInterval(checkInterval);
-                console.log('✅ loader.js loaded, initializing Monaco...');
-                showDebug('✅ Monaco Editor 読み込み完了');
-                initializeMonacoEditor();
-            }
-        }, 100);
-
-        // 10秒でタイムアウト
-        setTimeout(function () {
-            if (!window.monacoLoaderReady || typeof require === 'undefined') {
-                clearInterval(checkInterval);
-                console.error('❌ loader.js failed to load');
-                console.error('monacoLoaderReady:', window.monacoLoaderReady);
-                console.error('typeof require:', typeof require);
-                showDebug('❌ Monaco Editor の読み込みに失敗しました');
-            }
-        }, 10000);
-    }
+    // Monaco Editor の loader.js を動的に読み込む
+    loadMonacoLoader();
 
     console.log('About to setup event listeners...');
     setupEventListeners();
@@ -125,6 +159,16 @@ function initializeCSInterface() {
 
                 if (typeResult !== 'function') {
                     showDebug('❌ JSX関数が定義されていません！');
+                }
+            });
+
+            // applyExpressionToLayers関数の確認
+            csInterface.evalScript('typeof applyExpressionToLayers', function (typeResult) {
+                console.log('applyExpressionToLayers type:', typeResult);
+                showDebug(`✅ applyExpressionToLayers: ${typeResult}`);
+
+                if (typeResult !== 'function') {
+                    showDebug('❌ applyExpressionToLayers が定義されていません！');
                 }
             });
         } else {
@@ -535,22 +579,41 @@ function applyExpression() {
     }
 
     console.log('🚀 Applying expression...');
+    console.log('  Expression:', expression);
+    console.log('  Property:', currentProperty.name);
+    console.log('  Layers:', selectedLayers.map(l => l.index));
     updateStatus('エクスプレッションを適用中...');
 
-    // JSON文字列をエスケープ
-    const escapedExpression = JSON.stringify(expression);
-    const layerIndices = selectedLayers.map(l => l.index).join(',');
+    // まず、applyExpressionToLayers関数が定義されているか確認
+    csInterface.evalScript('typeof applyExpressionToLayers', function (typeResult) {
+        console.log('🔍 Pre-apply check - applyExpressionToLayers type:', typeResult);
 
-    csInterface.evalScript(
-        `applyExpressionToLayers([${layerIndices}], "${currentProperty.name}", ${escapedExpression})`,
-        function (result) {
+        if (typeResult !== 'function') {
+            console.error('❌ applyExpressionToLayers is not defined!');
+            alert('❌ JSX関数が見つかりません。After Effectsを再起動してください。');
+            updateStatus('JSX関数エラー');
+            return;
+        }
+
+        // エクスプレッション文字列をエスケープ（二重引用符とバックスラッシュをエスケープ）
+        const escapedExpression = expression.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        const layerIndices = selectedLayers.map(l => l.index).join(',');
+        const escapedPropertyName = currentProperty.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+        const jsxCode = `applyExpressionToLayers([${layerIndices}], "${escapedPropertyName}", "${escapedExpression}")`;
+        console.log('  JSX code:', jsxCode);
+
+        csInterface.evalScript(jsxCode, function (result) {
             console.log('Apply result:', result);
+            console.log('Apply result type:', typeof result);
+            console.log('Apply result length:', result ? result.length : 0);
 
             try {
                 const data = JSON.parse(result);
                 if (data.success) {
-                    alert(`✅ ${data.count}個のレイヤーに適用しました`);
+                    // alert(`✅ ${data.count}個のレイヤーに適用しました`);  // 成功アラート（後で必要になるかもしれないのでコメントアウト）
                     updateStatus(`適用完了: ${data.count}個のレイヤー`);
+                    console.log(`✅ ${data.count}個のレイヤーにエクスプレッションを適用しました`);
                     // プロパティリストを更新
                     loadProperties();
                 } else {
@@ -562,8 +625,8 @@ function applyExpression() {
                 alert('❌ 適用に失敗しました');
                 updateStatus('適用失敗');
             }
-        }
-    );
+        });
+    });
 }
 
 console.log('📝 Expression Control loaded');
