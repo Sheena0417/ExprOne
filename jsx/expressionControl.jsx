@@ -21,10 +21,10 @@ function getSelectedLayers() {
     try {
         var comp = app.project.activeItem;
         if (!(comp instanceof CompItem)) {
-            return "ERROR:コンポジションをアクティブにしてください。";
+            return "ERROR:Please activate a composition.";
         }
         if (comp.selectedLayers.length === 0) {
-            return "ERROR:1つ以上のレイヤーを選択してください。";
+            return "ERROR:Please select one or more layers.";
         }
 
         // グローバルキャッシュに保存
@@ -51,12 +51,12 @@ function listVisibleExpressionProps(layerIndex) {
     try {
         var comp = app.project.activeItem;
         if (!(comp instanceof CompItem)) {
-            return "ERROR:アクティブなコンポジションがありません。";
+            return "ERROR:No active composition.";
         }
 
         var selectedLayer = comp.layer(layerIndex);
         if (!selectedLayer) {
-            return "ERROR:レイヤーが見つかりません。";
+            return "ERROR:Layer not found.";
         }
 
         var result = [];
@@ -197,12 +197,12 @@ function listVisibleExpressionProps(layerIndex) {
 function listCommonExpressionProps(layerIndices) {
     try {
         if (!layerIndices || layerIndices.length === 0) {
-            return "ERROR:レイヤーが指定されていません。";
+            return "ERROR:No layers specified.";
         }
 
         var comp = app.project.activeItem;
         if (!(comp instanceof CompItem)) {
-            return "ERROR:アクティブなコンポジションがありません。";
+            return "ERROR:No active composition.";
         }
 
         var allPropsPerLayer = [];
@@ -257,12 +257,12 @@ function getExpressionContent(layerIndex, propertyName) {
     try {
         var comp = app.project.activeItem;
         if (!(comp instanceof CompItem)) {
-            return "ERROR:アクティブなコンポジションがありません。";
+            return "ERROR:No active composition.";
         }
 
         var layer = comp.layer(layerIndex);
         if (!layer) {
-            return "ERROR:レイヤーが見つかりません。";
+            return "ERROR:Layer not found.";
         }
 
         // キャッシュされたプロパティから検索
@@ -279,7 +279,7 @@ function getExpressionContent(layerIndex, propertyName) {
             } catch (e) { }
         }
 
-        return "ERROR:プロパティが見つかりません。";
+        return "ERROR:Property not found.";
 
     } catch (e) {
         logError("エクスプレッション内容の取得", e);
@@ -308,7 +308,7 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
     try {
         var comp = app.project.activeItem;
         if (!(comp instanceof CompItem)) {
-            return '{"success":false,"error":"アクティブなコンポジションがありません。"}';
+            return '{"success":false,"error":"No active composition."}';
         }
 
         app.beginUndoGroup("Apply Expression to Layers");

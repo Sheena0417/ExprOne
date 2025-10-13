@@ -304,7 +304,7 @@ function initializeMonacoEditor() {
         });
 
         console.log('✅ Monaco Editor initialized');
-        updateStatus('Monaco Editor ready ✓');
+        updateStatus('Ready');
     });
 }
 
@@ -366,19 +366,19 @@ function setupEventListeners() {
 // レイヤースキャン
 function refreshLayers() {
     console.log('🔍 Scanning layers...');
-    showDebug('🔍 refreshLayers() が呼ばれました');
-    updateStatus('レイヤー情報を取得中...');
+    showDebug('🔍 refreshLayers() called');
+    updateStatus('Loading layer info...');
 
     const layerInfo = document.getElementById('layerInfo');
-    layerInfo.textContent = '🔄 レイヤー情報を更新中...';
+    layerInfo.textContent = '🔄 Updating layer info...';
 
-    // まずコンポジションがアクティブか確認
+    // Check if composition is active
     csInterface.evalScript('app.project.activeItem ? "OK" : "NO_COMP"', function (testResult) {
         console.log('Comp check:', testResult);
 
         if (testResult === 'NO_COMP') {
-            layerInfo.textContent = '❌ コンポジションがアクティブではありません';
-            updateStatus('エラー: コンポジションなし');
+            layerInfo.textContent = '❌ No active composition';
+            updateStatus('Error: No composition');
             return;
         }
 
@@ -389,8 +389,8 @@ function refreshLayers() {
             try {
                 if (result.indexOf('ERROR:') === 0) {
                     const errorMsg = result.substring(6);
-                    layerInfo.textContent = '❌ エラー: ' + errorMsg;
-                    updateStatus('エラー: ' + errorMsg);
+                    layerInfo.textContent = '❌ Error: ' + errorMsg;
+                    updateStatus('Error: ' + errorMsg);
                     return;
                 }
 
@@ -410,33 +410,33 @@ function refreshLayers() {
                     }
 
                     if (count === 1) {
-                        layerInfo.textContent = `✅ レイヤー: ${selectedLayers[0].name}`;
+                        layerInfo.textContent = `✅ Layer: ${selectedLayers[0].name}`;
                     } else {
-                        layerInfo.textContent = `✅ 選択レイヤー: ${count}個`;
+                        layerInfo.textContent = `✅ Selected layers: ${count}`;
                     }
 
-                    // プロパティを読み込み
+                    // Load properties
                     loadProperties();
                 } else {
-                    layerInfo.textContent = '❌ 予期しない結果形式';
-                    updateStatus('エラー: 結果形式エラー');
+                    layerInfo.textContent = '❌ Unexpected result format';
+                    updateStatus('Error: Invalid format');
                 }
             } catch (e) {
                 console.error('Parse error:', e);
-                layerInfo.textContent = '❌ 解析エラー';
-                updateStatus('エラー: 解析失敗');
+                layerInfo.textContent = '❌ Parse error';
+                updateStatus('Error: Parse failed');
             }
         });
     });
 }
 
-// プロパティ読み込み
+// Load properties
 function loadProperties() {
     if (selectedLayers.length === 0) return;
 
     console.log('📋 Loading properties...');
     console.log('Selected layers:', selectedLayers);
-    updateStatus('プロパティを読み込み中...');
+    updateStatus('Loading properties...');
 
     if (selectedLayers.length === 1) {
         const layerIndex = selectedLayers[0].index;
@@ -475,14 +475,14 @@ function handlePropertiesResult(result) {
 
     if (!result || result === 'undefined' || result === '') {
         console.error('❌ Empty or undefined result from JSX');
-        updateStatus('エラー: JSX から結果が返されませんでした');
+        updateStatus('Error: No result from JSX');
         return;
     }
 
     if (result.indexOf('ERROR:') === 0) {
         const errorMsg = result.substring(6);
         console.error('❌ JSX Error:', errorMsg);
-        updateStatus('エラー: ' + errorMsg);
+        updateStatus('Error: ' + errorMsg);
         return;
     }
 
@@ -525,9 +525,9 @@ function handlePropertiesResult(result) {
 
         console.log('Parsed properties:', allProperties.length);
         console.log('All properties:', allProperties);
-        showDebug(`📋 ${allProperties.length}個のプロパティを解析しました`);
+        showDebug(`📋 Parsed ${allProperties.length} properties`);
         updatePropertyList();
-        updateStatus(`${allProperties.length}個のプロパティを読み込みました`);
+        updateStatus(`${allProperties.length} properties loaded`);
     }
 }
 
@@ -568,14 +568,14 @@ function selectCustomProperty(propertyData) {
     currentProperty = propertyData;
     console.log('Selected property:', currentProperty.name);
 
-    // ボタンのテキストを更新
+    // Update button text
     const button = document.getElementById('customSelectButton');
     if (currentProperty.hasExpression) {
         button.textContent = '● ' + currentProperty.name;
     } else {
         button.textContent = currentProperty.name;
     }
-    button.title = currentProperty.name + (currentProperty.hasExpression ? ' (エクスプレッション記入済み)' : '');
+    button.title = currentProperty.name + (currentProperty.hasExpression ? ' (Expression applied)' : '');
 
     // 選択状態をハイライト
     document.querySelectorAll('.custom-select-option').forEach(opt => {
@@ -605,7 +605,7 @@ function selectCustomProperty(propertyData) {
     }
 }
 
-// プロパティリスト更新
+// Update property list
 function updatePropertyList() {
     const optionsContainer = document.getElementById('customSelectOptions');
     if (!optionsContainer) return;
@@ -615,7 +615,7 @@ function updatePropertyList() {
     if (allProperties.length === 0) {
         const emptyDiv = document.createElement('div');
         emptyDiv.className = 'custom-select-option disabled';
-        emptyDiv.textContent = 'プロパティが見つかりません';
+        emptyDiv.textContent = 'No properties found';
         optionsContainer.appendChild(emptyDiv);
         return;
     }
@@ -624,7 +624,7 @@ function updatePropertyList() {
         const optionDiv = document.createElement('div');
         optionDiv.className = 'custom-select-option';
 
-        // エクスプレッション記入済みの場合、クラスとアイコンを追加
+        // Add class and icon for properties with expression
         if (prop.hasExpression) {
             optionDiv.classList.add('has-expression');
             optionDiv.textContent = '● ' + prop.name;
@@ -632,7 +632,7 @@ function updatePropertyList() {
             optionDiv.textContent = prop.name;
         }
 
-        optionDiv.title = prop.name + (prop.hasExpression ? ' (エクスプレッション記入済み)' : '');
+        optionDiv.title = prop.name + (prop.hasExpression ? ' (Expression applied)' : '');
         optionDiv.dataset.propertyName = prop.name;
         optionDiv.dataset.property = JSON.stringify(prop);
 
@@ -643,9 +643,9 @@ function updatePropertyList() {
         optionsContainer.appendChild(optionDiv);
     });
 
-    // ボタンのテキストをリセット
+    // Reset button text
     const button = document.getElementById('customSelectButton');
-    button.textContent = 'プロパティを選択...';
+    button.textContent = 'Select a property...';
 }
 
 // プロパティ選択時
@@ -674,31 +674,31 @@ function onPropertySelected(event) {
                 if (monacoEditor) {
                     monacoEditor.setValue(expression);
                 }
-                updateStatus('エクスプレッションを読み込みました');
+                updateStatus('Expression loaded');
             }
         });
     } else {
         if (monacoEditor) {
-            monacoEditor.setValue('// エクスプレッションを入力\nvalue');
+            monacoEditor.setValue('// Enter expression\nvalue');
         }
     }
 }
 
-// エクスプレッション適用
+// Apply expression
 function applyExpression() {
     if (!currentProperty) {
-        alert('プロパティが選択されていません');
+        alert('No property selected');
         return;
     }
 
     if (selectedLayers.length === 0) {
-        alert('レイヤーが選択されていません');
+        alert('No layers selected');
         return;
     }
 
     const expression = monacoEditor ? monacoEditor.getValue() : '';
     if (!expression.trim()) {
-        alert('エクスプレッションが空です');
+        alert('Expression is empty');
         return;
     }
 
@@ -706,16 +706,16 @@ function applyExpression() {
     console.log('  Expression:', expression);
     console.log('  Property:', currentProperty.name);
     console.log('  Layers:', selectedLayers.map(l => l.index));
-    updateStatus('エクスプレッションを適用中...');
+    updateStatus('Applying expression...');
 
-    // まず、applyExpressionToLayers関数が定義されているか確認
+    // Check if applyExpressionToLayers function is defined
     csInterface.evalScript('typeof applyExpressionToLayers', function (typeResult) {
         console.log('🔍 Pre-apply check - applyExpressionToLayers type:', typeResult);
 
         if (typeResult !== 'function') {
             console.error('❌ applyExpressionToLayers is not defined!');
-            alert('❌ JSX関数が見つかりません。After Effectsを再起動してください。');
-            updateStatus('JSX関数エラー');
+            alert('❌ JSX function not found. Please restart After Effects.');
+            updateStatus('JSX function error');
             return;
         }
 
@@ -735,19 +735,19 @@ function applyExpression() {
             try {
                 const data = JSON.parse(result);
                 if (data.success) {
-                    // alert(`✅ ${data.count}個のレイヤーに適用しました`);  // 成功アラート（後で必要になるかもしれないのでコメントアウト）
-                    updateStatus(`適用完了: ${data.count}個のレイヤー`);
-                    console.log(`✅ ${data.count}個のレイヤーにエクスプレッションを適用しました`);
-                    // プロパティリストを更新
+                    // alert(`✅ Applied to ${data.count} layer(s)`);  // Success alert (commented out for cleaner UX)
+                    updateStatus(`Applied to ${data.count} layer(s)`);
+                    console.log(`✅ Expression applied to ${data.count} layer(s)`);
+                    // Update property list
                     loadProperties();
                 } else {
-                    alert('❌ 適用失敗: ' + (data.error || '不明なエラー'));
-                    updateStatus('適用失敗');
+                    alert('❌ Failed to apply: ' + (data.error || 'Unknown error'));
+                    updateStatus('Apply failed');
                 }
             } catch (e) {
                 console.error('Parse error:', e);
-                alert('❌ 適用に失敗しました');
-                updateStatus('適用失敗');
+                alert('❌ Failed to apply expression');
+                updateStatus('Apply failed');
             }
         });
     });

@@ -223,48 +223,48 @@
 </head>
 
 <body>
-    <!-- This Layer(s) ボタン -->
+    <!-- This Layer(s) Button -->
     <div class="section">
         <button id="thisLayersBtn"
             onclick="if(typeof refreshLayers === 'function') { refreshLayers(); } else { alert('refreshLayers is not defined'); }">This
             Layer(s)</button>
-        <div id="layerInfo" class="info-text">レイヤーを選択してボタンをクリック</div>
-        <!-- デバッグ用ログ（必要に応じてコメント解除）
+        <div id="layerInfo" class="info-text">Select layers and click the button</div>
+        <!-- Debug log (uncomment if needed)
         <div id="debugInfo" style="font-size: 10px; color: #666; margin-top: 5px; max-height: 100px; overflow-y: auto;">
         </div>
         -->
     </div>
 
-    <!-- Set Expressions カスタムドロップダウン -->
+    <!-- Set Expressions Custom Dropdown -->
     <div class="section">
         <label>Set Expressions:</label>
         <div class="custom-select-container">
             <div id="customSelectButton" class="custom-select-button">
-                プロパティを選択...
+                Select a property...
             </div>
             <div id="customSelectDropdown" class="custom-select-dropdown" style="display: none;">
                 <div class="custom-select-search">
-                    <input type="text" id="propertySearchInput" placeholder="検索..." />
+                    <input type="text" id="propertySearchInput" placeholder="Search..." />
                 </div>
                 <div id="customSelectOptions" class="custom-select-options">
-                    <!-- プロパティリストがここに表示されます -->
+                    <!-- Property list will be displayed here -->
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- エクスプレッション記入欄 -->
+    <!-- Expression Editor -->
     <div class="editor-section">
         <div id="monacoEditor"></div>
     </div>
 
-    <!-- Apply ボタン -->
+    <!-- Apply Button -->
     <div class="section">
         <button class="apply-button" id="applyBtn">Apply Expression</button>
     </div>
 
     <div class="status">
-        <span id="statusText">準備完了</span>
+        <span id="statusText">Ready</span>
     </div>
 
     <!-- Scripts -->
