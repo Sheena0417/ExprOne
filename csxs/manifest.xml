@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest ExtensionBundleId="com.expressioncontrol.panel" ExtensionBundleVersion="1.0.0" 
-                  ExtensionBundleName="Expression Control" Version="12.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest ExtensionBundleId="com.expressioncontrol.monaco" ExtensionBundleVersion="1.0.2" 
+                  ExtensionBundleName="Expression Control Monaco" Version="12.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   
   <ExtensionList>
-    <Extension Id="com.expressioncontrol.panel" Version="1.0.0" />
+    <Extension Id="com.expressioncontrol.monaco" Version="1.0.2" />
   </ExtensionList>
   
   <ExecutionEnvironment>
@@ -19,7 +19,7 @@
   </ExecutionEnvironment>
   
   <DispatchInfoList>
-    <Extension Id="com.expressioncontrol.panel">
+    <Extension Id="com.expressioncontrol.monaco">
       <MainPath>./index.html</MainPath>
       <ScriptPath>./jsx/expressionControl.jsx</ScriptPath>
       
@@ -45,7 +45,7 @@
       
       <UI>
         <Type>Panel</Type>
-        <Menu>Expression Control</Menu>
+        <Menu>Expression Control (Monaco)</Menu>
         <Geometry>
           <Size>
             <Width>600</Width>

@@ -6,14 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expression Control</title>
 
-    <!-- CodeMirror 6 -->
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@6.0.1/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/view@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/state@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/language@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/lint@6.0.0/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.0.0/dist/index.js"></script>
+    <!-- シンプルなエディター（外部依存なし） -->
 
     <style>
         body {
@@ -235,6 +228,175 @@
             color: #888;
             z-index: 100;
         }
+
+        /* シンタックスハイライトエディター */
+        .syntax-editor-container {
+            position: relative;
+            width: 100%;
+            min-height: 200px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #1e1e1e;
+            overflow: hidden;
+        }
+
+        .highlight-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 12px;
+            background: transparent;
+            color: transparent;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            pointer-events: none;
+            z-index: 1;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .editor-textarea {
+            position: relative;
+            width: 100%;
+            min-height: 200px;
+            padding: 12px;
+            background: transparent;
+            color: #cccccc;
+            border: none;
+            outline: none;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            resize: vertical;
+            z-index: 2;
+            box-sizing: border-box;
+        }
+
+        .editor-textarea::selection {
+            background: rgba(77, 166, 255, 0.3);
+        }
+
+        /* シンタックスハイライト色 */
+        .token-ae-keyword {
+            color: #4FC3F7;
+            font-weight: bold;
+        }
+
+        .token-js-keyword {
+            color: #BA68C8;
+            font-weight: bold;
+        }
+
+        .token-string {
+            color: #FFB74D;
+        }
+
+        .token-number {
+            color: #81C784;
+        }
+
+        .token-comment {
+            color: #757575;
+            font-style: italic;
+        }
+
+        .token-bracket {
+            color: #64B5F6;
+            font-weight: bold;
+        }
+
+        .token-operator {
+            color: #E0E0E0;
+        }
+
+        .token-function {
+            color: #FFEB3B;
+        }
+
+        /* CodeMirror 6 カスタムスタイル */
+        .code-editor .cm-editor {
+            height: 100% !important;
+            border: 1px solid #555 !important;
+            border-radius: 4px !important;
+            background: #1e1e1e !important;
+            color: #d4d4d4 !important;
+        }
+
+        .code-editor .cm-content {
+            padding: 12px !important;
+            min-height: 200px !important;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace !important;
+            font-size: 13px !important;
+            line-height: 1.4 !important;
+            color: #d4d4d4 !important;
+            background: #1e1e1e !important;
+        }
+
+        .code-editor .cm-focused {
+            outline: none !important;
+            border-color: #4da6ff !important;
+        }
+
+        .code-editor .cm-scroller {
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace !important;
+        }
+
+        /* オートコンプリートのスタイル */
+        .code-editor .cm-tooltip-autocomplete {
+            background-color: #2a2a2a !important;
+            border: 1px solid #555 !important;
+            border-radius: 4px !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+            z-index: 1000 !important;
+        }
+
+        .code-editor .cm-tooltip-autocomplete ul li {
+            padding: 6px 10px !important;
+            color: #cccccc !important;
+            font-size: 12px !important;
+        }
+
+        .code-editor .cm-tooltip-autocomplete ul li[aria-selected] {
+            background-color: #4da6ff !important;
+            color: #ffffff !important;
+        }
+
+        /* フォールバックエディター用スタイル */
+        #fallbackEditor {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            background: #1e1e1e;
+            color: #cccccc;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        #fallbackEditor:focus {
+            outline: none;
+            border-color: #4da6ff;
+        }
+
+        .editor-container {
+            width: 100%;
+            min-height: 200px;
+            border-radius: 4px;
+            background: #1e1e1e;
+            position: relative;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 
@@ -281,20 +443,12 @@
         <!-- エクスプレッション記入欄 -->
         <div class="section">
             <label>エクスプレッション:</label>
-            <textarea id="expressionEditor" style="
-                width: 100%;
-                height: 150px;
-                padding: 10px;
-                background: #1a1a1a;
-                color: #ffffff;
-                border: 1px solid #555;
-                border-radius: 3px;
-                font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-                font-size: 13px;
-                line-height: 1.4;
-                resize: vertical;
-                box-sizing: border-box;
-            " placeholder="エクスプレッションを入力..."></textarea>
+            <div class="syntax-editor-container">
+                <!-- ハイライト表示レイヤー -->
+                <div id="highlightLayer" class="highlight-layer"></div>
+                <!-- 入力用textarea -->
+                <textarea id="expressionEditor" class="editor-textarea" placeholder="エクスプレッションを入力..."></textarea>
+            </div>
         </div>
 
         <!-- Apply ボタン -->
@@ -347,7 +501,7 @@
         ];
 
         // CodeMirror Editor初期化
-        function initializeCodeMirrorEditor() {
+        function initializeSyntaxEditor() {
             try {
                 console.log('Initializing CodeMirror Editor...');
 
@@ -356,23 +510,16 @@
                     throw new Error('CodeMirror not loaded');
                 }
 
-                // After Effects Expression用のオートコンプリート
-                const aeExpressionCompletion = CodeMirror.autocomplete.completeFromList(
-                    AE_EXPRESSION_KEYWORDS.map(word => ({
-                        label: word,
-                        type: 'keyword',
-                        info: `After Effects Expression: ${word}`
-                    }))
-                );
+                // エディター設定（正しいAPI）
+                const { EditorView, basicSetup } = CM["@codemirror/view"];
+                const { javascript } = CM["@codemirror/lang-javascript"];
+                const { oneDark } = CM["@codemirror/theme-one-dark"];
+                const { autocompletion } = CM["@codemirror/autocomplete"];
 
-                // エディター設定
                 const extensions = [
-                    CodeMirror.basicSetup,
-                    CodeMirror.javascript(),
-                    CodeMirror.oneDark,
-                    CodeMirror.autocompletion({
-                        override: [aeExpressionCompletion]
-                    }),
+                    basicSetup,
+                    javascript(),
+                    oneDark,
                     CodeMirror.EditorView.updateListener.of((update) => {
                         if (update.docChanged) {
                             // 隠しtextareaと同期
@@ -399,12 +546,14 @@
 
                 // エディター作成
                 codeMirrorEditor = new CodeMirror.EditorView({
-                    doc: '',
+                    doc: '// エクスプレッションをここに入力してください\n',
                     extensions: extensions,
-                    parent: document.getElementById('editorContainer')
+                    parent: document.getElementById('codeMirrorEditor')
                 });
 
                 console.log('CodeMirror Editor initialized successfully');
+                document.getElementById('statusText').textContent = 'Expression Control - CodeMirror Ready ✨';
+                updateStatusBar();
                 return true;
 
             } catch (error) {
@@ -414,25 +563,105 @@
             }
         }
 
+        // フォールバック: 通常のtextareaを表示
+        function showFallbackTextarea() {
+            console.log('Using fallback textarea editor');
+
+            const container = document.getElementById('codeMirrorEditor');
+            container.style.display = 'none';
+
+            const textarea = document.getElementById('fallbackEditor');
+            textarea.style.display = 'block';
+            textarea.placeholder = 'エクスプレッションを入力してください (Fallback Editor)';
+            textarea.value = '// エクスプレッションをここに入力してください\n';
+
+            // 基本的なタブ機能を追加
+            textarea.addEventListener('keydown', function (e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+                    this.selectionStart = this.selectionEnd = start + 2;
+                }
+            });
+
+            // 変更イベント
+            textarea.addEventListener('input', function () {
+                updateStatusBar();
+            });
+
+            // ステータス表示
+            showMessage('CodeMirrorが利用できません - 基本エディターで動作中', 'error');
+            document.getElementById('statusText').textContent = 'Expression Control - Fallback Editor';
+        }
+
         // 不要な関数を削除（シンプルなエディターに変更）
 
         // Enhanced Editor機能は削除（シンプルなエディターに変更）
 
         // エディターのヘルパー関数
         function setEditorValue(value) {
-            var textarea = document.getElementById('expressionEditor');
-            if (textarea) {
-                textarea.value = value || '';
+            if (codeMirrorEditor) {
+                codeMirrorEditor.dispatch({
+                    changes: {
+                        from: 0,
+                        to: codeMirrorEditor.state.doc.length,
+                        insert: value || ''
+                    }
+                });
+            } else {
+                // フォールバックエディター用
+                const textarea = document.getElementById('fallbackEditor');
+                if (textarea) {
+                    textarea.value = value || '';
+                }
             }
         }
 
         function getEditorValue() {
-            var textarea = document.getElementById('expressionEditor');
-            return textarea ? textarea.value : '';
+            if (codeMirrorEditor) {
+                return codeMirrorEditor.state.doc.toString();
+            } else {
+                // フォールバックエディター用
+                const textarea = document.getElementById('fallbackEditor');
+                if (textarea) {
+                    return textarea.value;
+                }
+                return '';
+            }
         }
 
-        // Enhanced Basic Editor初期化
-        function initializeBasicEditor() {
+        // ステータスバー更新
+        function updateStatusBar() {
+            if (codeMirrorEditor) {
+                const state = codeMirrorEditor.state;
+                const selection = state.selection.main;
+                const line = state.doc.lineAt(selection.head);
+                const lineNumber = line.number;
+                const column = selection.head - line.from + 1;
+                document.getElementById('statusText').textContent =
+                    `Expression Control - 行: ${lineNumber}, 列: ${column}`;
+            } else {
+                // フォールバックエディター用
+                const textarea = document.getElementById('fallbackEditor');
+                if (textarea && textarea.style.display !== 'none') {
+                    const text = textarea.value;
+                    const cursorPos = textarea.selectionStart;
+                    const textBeforeCursor = text.substring(0, cursorPos);
+                    const lineNumber = textBeforeCursor.split('\n').length;
+                    const lastLineStart = textBeforeCursor.lastIndexOf('\n');
+                    const column = cursorPos - lastLineStart;
+                    document.getElementById('statusText').textContent =
+                        `Expression Control - 行: ${lineNumber}, 列: ${column}`;
+                } else {
+                    document.getElementById('statusText').textContent = 'Expression Control - Ready';
+                }
+            }
+        }
+
+        // 削除された古い関数
+        function oldInitializeBasicEditor() {
             var textarea = document.getElementById('expressionEditor');
             if (!textarea) return;
 
@@ -668,14 +897,12 @@
                 }
             });
 
-            console.log('Enhanced Basic Editor initialized successfully');
-            document.getElementById('statusText').textContent = 'Expression Control - Enhanced Editor Ready ✨';
         }
 
         // 初期化
         document.addEventListener('DOMContentLoaded', function () {
-            // Basic Editorを初期化
-            initializeBasicEditor();
+            // シンタックスハイライターを初期化
+            initializeSyntaxEditor();
 
             // CSInterface初期化
             if (typeof CSInterface !== 'undefined') {
