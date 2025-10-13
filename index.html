@@ -32,10 +32,24 @@
             color: #ffffff;
             padding: 15px;
             font-size: 13px;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
         }
 
         .section {
             margin-bottom: 15px;
+            flex-shrink: 0;
+        }
+
+        .editor-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+            min-height: 0;
         }
 
         label {
@@ -175,10 +189,10 @@
 
         #monacoEditor {
             width: 100%;
-            height: 300px;
+            height: 100%;
+            flex: 1;
             border: 1px solid #555;
             border-radius: 3px;
-            margin-bottom: 10px;
         }
 
         .apply-button {
@@ -198,14 +212,12 @@
         }
 
         .status {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
             background: #1a1a1a;
             padding: 5px 15px;
             font-size: 11px;
             color: #888;
+            flex-shrink: 0;
+            margin: 0 -15px -15px -15px;
         }
     </style>
 </head>
@@ -242,7 +254,7 @@
     </div>
 
     <!-- エクスプレッション記入欄 -->
-    <div class="section">
+    <div class="editor-section">
         <div id="monacoEditor"></div>
     </div>
 
