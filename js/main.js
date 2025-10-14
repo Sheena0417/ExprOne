@@ -850,6 +850,85 @@ function onPropertySelected(event) {
     }
 }
 
+// Check for expression errors and display in Monaco Editor
+function checkExpressionError() {
+    if (!currentProperty || !monacoEditor) return;
+
+    // Only check errors for single layer
+    if (selectedLayers.length !== 1) return;
+
+    const layerIndex = selectedLayers[0].index;
+    const propertyName = currentProperty.name;
+
+    console.log('🔍 Checking expression error for:', propertyName);
+
+    csInterface.evalScript(`getExpressionError(${layerIndex}, "${propertyName}")`, function (result) {
+        console.log('Expression error result:', result);
+
+        if (!result || result.indexOf('ERROR:') === 0) {
+            console.log('❌ Failed to get expression error');
+            return;
+        }
+
+        if (result.indexOf('SUCCESS:') === 0) {
+            const errorMsg = result.substring(8);
+
+            if (errorMsg && errorMsg.trim() !== '') {
+                console.log('⚠️ Expression error detected:', errorMsg);
+
+                // Extract line number from error message
+                // AE errors are in the format "Error at line X: message"
+                let lineNumber = 1;
+                const lineMatch = errorMsg.match(/line (\d+)/i);
+                if (lineMatch) {
+                    lineNumber = parseInt(lineMatch[1]);
+                }
+
+                // Simplify error message - extract only the essential error part
+                // Pattern: "SyntaxError: ...", "ReferenceError: ...", "TypeError: ...", etc.
+                let simplifiedError = errorMsg;
+                const errorTypeMatch = errorMsg.match(/(SyntaxError|ReferenceError|TypeError|Error):\s*([^\n\\]+)/);
+                if (errorTypeMatch) {
+                    simplifiedError = `${errorTypeMatch[1]}: ${errorTypeMatch[2]}`;
+                } else {
+                    // Fallback: remove "Expression Disabled" and path information
+                    simplifiedError = errorMsg
+                        .replace(/Expression Disabled\\n/g, '')
+                        .replace(/Error at line \d+ in property '[^']+' of layer \d+ \('[^']+'\) in comp '[^']+'\.\s*/g, '')
+                        .replace(/\\n/g, ' ')
+                        .trim();
+                }
+
+                // Remove all \n characters and extra whitespace
+                simplifiedError = simplifiedError.replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
+
+                console.log('📝 Simplified error:', simplifiedError);
+
+                // Display error in Monaco Editor
+                const model = monacoEditor.getModel();
+                monaco.editor.setModelMarkers(model, 'ae-expression', [{
+                    startLineNumber: lineNumber,
+                    startColumn: 1,
+                    endLineNumber: lineNumber,
+                    endColumn: model.getLineMaxColumn(lineNumber),
+                    message: simplifiedError,
+                    severity: monaco.MarkerSeverity.Error
+                }]);
+
+                updateStatus('⚠️ Expression error detected');
+            } else {
+                console.log('✅ No expression errors');
+
+                // Clear error markers
+                const model = monacoEditor.getModel();
+                monaco.editor.setModelMarkers(model, 'ae-expression', []);
+
+                updateStatus('✅ Expression applied successfully');
+            }
+        }
+    });
+}
+
 // Apply expression
 function applyExpression() {
     if (!currentProperty) {
@@ -906,6 +985,11 @@ function applyExpression() {
                     console.log(`✅ Expression applied to ${data.count} layer(s)`);
                     // Update property list
                     loadProperties();
+
+                    // Check for expression errors after applying
+                    setTimeout(() => {
+                        checkExpressionError();
+                    }, 500);  // Wait for AE to evaluate the expression
                 } else {
                     alert('❌ Failed to apply: ' + (data.error || 'Unknown error'));
                     updateStatus('Apply failed');

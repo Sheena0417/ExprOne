@@ -464,3 +464,56 @@ function getProjectInfo() {
         return "ERROR:" + e.toString();
     }
 }
+
+// Get expression error for a property
+function getExpressionError(layerIndex, propertyName) {
+    try {
+        var comp = app.project.activeItem;
+        if (!(comp instanceof CompItem)) {
+            return "ERROR:No active composition.";
+        }
+
+        var layer = comp.layer(layerIndex);
+        if (!layer) {
+            return "ERROR:Layer not found.";
+        }
+
+        // Split property path
+        var pathParts = propertyName.split(" → ");
+
+        // Search for property from layer
+        var targetProp = layer;
+        var found = true;
+        for (var j = 0; j < pathParts.length; j++) {
+            try {
+                targetProp = targetProp.property(pathParts[j]);
+                if (!targetProp) {
+                    found = false;
+                    break;
+                }
+            } catch (e) {
+                found = false;
+                break;
+            }
+        }
+
+        if (!found || !targetProp) {
+            return "ERROR:Property not found.";
+        }
+
+        // Get expression error
+        var errorMsg = targetProp.expressionError;
+        if (errorMsg) {
+            // Escape error message
+            errorMsg = errorMsg.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+            return "SUCCESS:" + errorMsg;
+        } else {
+            return "SUCCESS:";  // No error
+        }
+
+    } catch (e) {
+        logError("Get Expression Error", e);
+        var errMsg = e.toString().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return "ERROR:" + errMsg;
+    }
+}
