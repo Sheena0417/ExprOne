@@ -906,7 +906,7 @@ function checkExpressionError() {
 
                 // Display error in Monaco Editor
                 const model = monacoEditor.getModel();
-                monaco.editor.setModelMarkers(model, 'ae-expression', [{
+                monaco.editor.setModelMarkers(model, 'ae-runtime', [{
                     startLineNumber: lineNumber,
                     startColumn: 1,
                     endLineNumber: lineNumber,
@@ -919,9 +919,9 @@ function checkExpressionError() {
             } else {
                 console.log('✅ No expression errors');
 
-                // Clear error markers
+                // Clear error markers (only AE runtime errors)
                 const model = monacoEditor.getModel();
-                monaco.editor.setModelMarkers(model, 'ae-expression', []);
+                monaco.editor.setModelMarkers(model, 'ae-runtime', []);
 
                 updateStatus('✅ Expression applied successfully');
             }
