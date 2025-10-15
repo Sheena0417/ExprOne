@@ -3,24 +3,24 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   ExtensionBundleName="ExprOne"
   ExtensionBundleId="com.exprone"
-  ExtensionBundleVersion="1.0.2"
-  Version="9.0">
+  ExtensionBundleVersion="0.9.0"
+  Version="7.0">
   
   <Author>ExprOne</Author>
   
   <ExtensionList>
-    <Extension Id="com.exprone" Version="1.0.2" />
+    <Extension Id="com.exprone" Version="0.9.0" />
   </ExtensionList>
   
   <ExecutionEnvironment>
     <HostList>
-      <Host Name="AEFT" Version="13.0" />
+      <Host Name="AEFT" Version="[22.0,26.0]"/>
     </HostList>
     <LocaleList>
       <Locale Code="All" />
     </LocaleList>
     <RequiredRuntimeList>
-      <RequiredRuntime Name="CSXS" Version="9.0" />
+      <RequiredRuntime Name="CSXS" Version="12.0" />
     </RequiredRuntimeList>
   </ExecutionEnvironment>
   
