@@ -1,5 +1,5 @@
 /**
- * Expression Control ExtendScript
+ * ExprOne ExtendScript
  * CEP Extension用のAfter Effects Expression制御スクリプト
  */
 

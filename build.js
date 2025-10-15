@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('Building Expression Control CEP Extension...');
+console.log('Building ExprOne CEP Extension...');
 
 // ビルド情報を生成
 const buildInfo = {

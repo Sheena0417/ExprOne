@@ -1,5 +1,5 @@
 /**
- * Expression Control - API Helper
+ * ExprOne - API Helper
  * After Effects Expression API用のヘルパー関数
  */
 
@@ -10,27 +10,27 @@ const AE_FUNCTIONS = [
     'wiggle', 'random', 'noise', 'smooth',
     'loopIn', 'loopOut', 'pingpong', 'cycle',
     'valueAtTime', 'velocityAtTime', 'speedAtTime',
-    
+
     // 数学関数
     'Math.sin', 'Math.cos', 'Math.tan', 'Math.asin', 'Math.acos', 'Math.atan', 'Math.atan2',
     'Math.sqrt', 'Math.pow', 'Math.exp', 'Math.log', 'Math.abs',
     'Math.floor', 'Math.ceil', 'Math.round', 'Math.min', 'Math.max',
     'Math.PI', 'Math.E',
-    
+
     // 文字列関数
     'toString', 'toFixed', 'substring', 'indexOf', 'replace',
-    
+
     // 配列・ベクトル関数
     'length', 'normalize', 'dot', 'cross', 'lookAt',
     'fromWorld', 'toWorld', 'fromComp', 'toComp',
-    
+
     // 時間関数
     'timeToFrames', 'framesToTime', 'timeToNTSCTimecode', 'timeToTimecode',
-    
+
     // レイヤー関数
     'thisLayer', 'thisComp', 'thisProperty',
     'marker', 'nearestKey', 'key', 'numKeys',
-    
+
     // テキスト関数
     'text.sourceText', 'text.font', 'text.fontSize', 'text.fillColor',
     'text.strokeColor', 'text.strokeWidth'
@@ -118,23 +118,23 @@ path.pointOnPath(t)`,
 // エクスプレッション検証
 function validateExpressionSyntax(expression) {
     const errors = [];
-    
+
     // 括弧の対応チェック
     const brackets = {
         '(': ')',
         '[': ']',
         '{': '}'
     };
-    
+
     for (const [open, close] of Object.entries(brackets)) {
         const openCount = (expression.match(new RegExp(`\\${open}`, 'g')) || []).length;
         const closeCount = (expression.match(new RegExp(`\\${close}`, 'g')) || []).length;
-        
+
         if (openCount !== closeCount) {
             errors.push(`${open}${close} の対応が取れていません`);
         }
     }
-    
+
     // セミコロンチェック
     const lines = expression.split('\n');
     lines.forEach((line, index) => {
@@ -146,7 +146,7 @@ function validateExpressionSyntax(expression) {
             }
         }
     });
-    
+
     // 使用禁止キーワード
     const forbiddenKeywords = ['eval', 'alert', 'confirm', 'prompt'];
     forbiddenKeywords.forEach(keyword => {
@@ -154,7 +154,7 @@ function validateExpressionSyntax(expression) {
             errors.push(`使用できないキーワード: ${keyword}`);
         }
     });
-    
+
     return {
         isValid: errors.length === 0,
         errors: errors
@@ -164,13 +164,13 @@ function validateExpressionSyntax(expression) {
 // エクスプレッションフォーマット
 function formatExpression(expression) {
     let formatted = expression;
-    
+
     // 基本的なインデント
     let indent = 0;
     const lines = formatted.split('\n');
     const indentedLines = lines.map(line => {
         const trimmed = line.trim();
-        
+
         if (trimmed.endsWith('{')) {
             const result = '  '.repeat(indent) + trimmed;
             indent++;
@@ -182,14 +182,14 @@ function formatExpression(expression) {
             return '  '.repeat(indent) + trimmed;
         }
     });
-    
+
     return indentedLines.join('\n');
 }
 
 // エクスプレッション補完候補
 function getCompletionSuggestions(context, position) {
     const suggestions = [];
-    
+
     // 関数の補完
     AE_FUNCTIONS.forEach(func => {
         suggestions.push({
@@ -200,7 +200,7 @@ function getCompletionSuggestions(context, position) {
             documentation: `After Effects標準関数: ${func}`
         });
     });
-    
+
     // プロパティの補完
     AE_PROPERTIES.forEach(prop => {
         suggestions.push({
@@ -211,7 +211,7 @@ function getCompletionSuggestions(context, position) {
             documentation: `After Effectsプロパティ: ${prop}`
         });
     });
-    
+
     // テンプレートの補完
     Object.entries(EXPRESSION_TEMPLATES).forEach(([key, template]) => {
         suggestions.push({
@@ -222,7 +222,7 @@ function getCompletionSuggestions(context, position) {
             documentation: template.description
         });
     });
-    
+
     return suggestions;
 }
 
@@ -234,37 +234,37 @@ function getExpressionInfo(expression) {
         variables: [],
         complexity: 'simple'
     };
-    
+
     // 使用されている関数を検出
     AE_FUNCTIONS.forEach(func => {
         if (expression.indexOf(func) !== -1) {
             info.functions.push(func);
         }
     });
-    
+
     // 使用されているプロパティを検出
     AE_PROPERTIES.forEach(prop => {
         if (expression.indexOf(prop) !== -1) {
             info.properties.push(prop);
         }
     });
-    
+
     // 変数を検出
     const variableMatches = expression.match(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=/g);
     if (variableMatches) {
         info.variables = variableMatches.map(match => match.replace(/\s*=/, ''));
     }
-    
+
     // 複雑さを判定
     const lineCount = expression.split('\n').length;
     const functionCount = info.functions.length;
-    
+
     if (lineCount > 10 || functionCount > 5) {
         info.complexity = 'complex';
     } else if (lineCount > 3 || functionCount > 2) {
         info.complexity = 'medium';
     }
-    
+
     return info;
 }
 

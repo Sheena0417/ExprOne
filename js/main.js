@@ -1,5 +1,5 @@
 /**
- * Expression Control - Simple Version with Monaco Editor
+ * ExprOne - Simple Version with Monaco Editor
  */
 
 // グローバル変数
@@ -305,7 +305,7 @@ window.MonacoEnvironment = {
 
 // 初期化
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('🚀 Initializing Expression Control...');
+    console.log('🚀 Initializing ExprOne...');
     console.log('DOM is ready');
 
     // デバッグ: ボタンの存在確認
@@ -1008,4 +1008,4 @@ function applyExpression() {
     });
 }
 
-console.log('📝 Expression Control loaded');
+console.log('📝 ExprOne loaded');

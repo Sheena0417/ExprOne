@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <ExtensionManifest
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  ExtensionBundleName="Expression Control Monaco"
-  ExtensionBundleId="com.expressioncontrol.monaco"
+  ExtensionBundleName="ExprOne"
+  ExtensionBundleId="com.exprone"
   ExtensionBundleVersion="1.0.2"
   Version="9.0">
   
-  <Author>Expression Control</Author>
+  <Author>ExprOne</Author>
   
   <ExtensionList>
-    <Extension Id="com.expressioncontrol.monaco" Version="1.0.2" />
+    <Extension Id="com.exprone" Version="1.0.2" />
   </ExtensionList>
   
   <ExecutionEnvironment>
@@ -25,7 +25,7 @@
   </ExecutionEnvironment>
   
   <DispatchInfoList>
-    <Extension Id="com.expressioncontrol.monaco">
+    <Extension Id="com.exprone">
       <DispatchInfo>
         <Resources>
           <MainPath>./index.html</MainPath>
@@ -40,7 +40,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>Expression Control (Monaco)</Menu>
+          <Menu>ExprOne</Menu>
           <Geometry>
             <Size>
               <Width>600</Width>

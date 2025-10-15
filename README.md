@@ -1,6 +1,6 @@
-# Expression Control - CEP Extension
+# ExprOne - CEP Extension
 
-After Effects用のExpression Control CEP拡張機能です。Monaco Editorを統合したモダンなUIでエクスプレッションの編集・管理ができます。
+After Effects用のExprOne CEP拡張機能です。Monaco Editorを統合したモダンなUIでエクスプレッションの編集・管理ができます。
 
 ## 🎉 最新情報（2025-10-13）
 
@@ -30,7 +30,7 @@ After Effects用のExpression Control CEP拡張機能です。Monaco Editorを�
 
 ### デバッグ版（開発用）
 ```bash
-cd CEP_Extension/ExpressionControl
+cd CEP_Extension/ExprOne
 npm install
 npm run dev
 ```
@@ -70,13 +70,13 @@ npm install
 npm run dev
 
 # After Effectsを再起動
-# Window > Extensions > Expression Control
+# Window > Extensions > ExprOne
 ```
 
 ## 📁 ディレクトリ構造
 
 ```
-ExpressionControl/
+ExprOne/
 ├── CSXS/
 │   └── manifest.xml          # CEP拡張機能設定
 ├── js/
