@@ -548,7 +548,7 @@ function refreshLayers() {
                     if (count === 1) {
                         layerInfo.textContent = `✅ Layer: ${selectedLayers[0].name}`;
                     } else {
-                        layerInfo.textContent = `✅ Selected layers: ${count}`;
+                        layerInfo.textContent = `✅ Selected layers: ${count} (showing common properties)`;
                     }
 
                     // Load properties
@@ -693,7 +693,12 @@ function handlePropertiesResult(result) {
         console.log('All properties:', allProperties);
         showDebug(`📋 Parsed ${allProperties.length} properties`);
         updatePropertyList();
-        updateStatus(`${allProperties.length} properties loaded`);
+
+        if (selectedLayers.length > 1) {
+            updateStatus(`${allProperties.length} common properties loaded`);
+        } else {
+            updateStatus(`${allProperties.length} properties loaded`);
+        }
     }
 }
 

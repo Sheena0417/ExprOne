@@ -230,7 +230,15 @@ function listCommonExpressionProps(layerIndices) {
         for (var k = 1; k < allPropsPerLayer.length; k++) {
             var newCommon = [];
             for (var l = 0; l < commonNames.length; l++) {
-                if (allPropsPerLayer[k].indexOf(commonNames[l]) !== -1) {
+                // indexOf is not available in ExtendScript, so check manually
+                var found = false;
+                for (var m = 0; m < allPropsPerLayer[k].length; m++) {
+                    if (allPropsPerLayer[k][m] === commonNames[l]) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
                     newCommon.push(commonNames[l]);
                 }
             }
@@ -239,8 +247,8 @@ function listCommonExpressionProps(layerIndices) {
 
         // 文字列形式で返す
         var output = "SUCCESS:";
-        for (var m = 0; m < commonNames.length; m++) {
-            output += "|PROP:" + commonNames[m];
+        for (var n = 0; n < commonNames.length; n++) {
+            output += "|PROP:" + commonNames[n];
             output += "|EXPR:0"; // 共通プロパティの場合、エクスプレッション状態は不明
         }
 
@@ -320,14 +328,14 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
             try {
                 var layer = comp.layer(layerIndices[i]);
                 if (!layer) {
-                    errors.push("レイヤー " + layerIndices[i] + " が見つかりません");
+                    errors.push("Layer " + layerIndices[i] + " not found");
                     continue;
                 }
 
-                // プロパティパスを分割
+                // Split property path
                 var pathParts = propertyName.split(" → ");
 
-                // レイヤーからプロパティを検索
+                // Search for property from layer
                 var targetProp = layer;
                 var found = true;
                 for (var j = 0; j < pathParts.length; j++) {
@@ -344,12 +352,12 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
                 }
 
                 if (!found || !targetProp) {
-                    errors.push(layer.name + ": プロパティ '" + propertyName + "' が見つかりません");
+                    errors.push(layer.name + ": Property '" + propertyName + "' not found");
                     continue;
                 }
 
                 if (!targetProp.canSetExpression) {
-                    errors.push(layer.name + ": エクスプレッションを設定できません");
+                    errors.push(layer.name + ": Cannot set expression on this property");
                     continue;
                 }
 
@@ -358,7 +366,7 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
                 successCount++;
 
             } catch (e) {
-                errors.push(layer ? layer.name : "レイヤー " + layerIndices[i] + ": " + e.toString());
+                errors.push(layer ? layer.name : "Layer " + layerIndices[i] + ": " + e.toString());
             }
         }
 
