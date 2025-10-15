@@ -1,3 +1,7 @@
 dist
 node_modules
-.DS_Store
+.DS_Store*.p12
+*.pem
+*.crt
+*.key
+certs/
