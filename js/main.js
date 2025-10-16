@@ -104,7 +104,8 @@ const aeKeywords = [
     { label: 'thisComp', doc: 'Current composition' },
     { label: 'thisLayer', doc: 'Current layer' },
     { label: 'thisProperty', doc: 'Current property' },
-    { label: 'time', doc: 'Current time in seconds' },
+    // { label: 'time', doc: 'Current time in seconds' },
+    { label: 'time*', doc: 'Current time in seconds (asterisk for multiplication)' },
     { label: 'value', doc: 'Original property value' },
     { label: 'index', doc: 'Layer index' },
     { label: 'colorDepth', doc: 'Bit depth of composition' },
@@ -188,7 +189,8 @@ const aeMath = [
 ];
 
 const aeAnimation = [
-    { label: 'wiggle', params: '${1:freq}, ${2:amp}', doc: 'Random wiggle motion' },
+    { label: 'wiggle', params: '${1},${2}', doc: 'Random wiggle motion' },
+    // { label: 'wiggle(', params: '${1:freq}, ${2:amp}', doc: 'Random wiggle motion' },
     { label: 'smooth', params: '${1:width}, ${2:samples}', doc: 'Smooth temporal variation' },
     { label: 'sourceRectAtTime', params: '${1:t}, ${2:includeExtents}', doc: 'Source rectangle at time' }
 ];
