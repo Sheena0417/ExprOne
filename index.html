@@ -258,9 +258,13 @@
         <div id="monacoEditor"></div>
     </div>
 
-    <!-- Apply Button -->
+    <!-- Action Buttons -->
     <div class="section">
-        <button class="apply-button" id="applyBtn">Apply Expression</button>
+        <div style="display: flex; gap: 5px;">
+            <button class="apply-button" id="applyBtn" style="width: 70%;">Apply Expression</button>
+            <button id="removeCurrentExpressionBtn" style="width: 15%; background: #f44336;">Remove</button>
+            <button id="removeAllExpressionsBtn" style="width: 15%; background: #ff5722;">Remove All</button>
+        </div>
     </div>
 
     <div class="status">

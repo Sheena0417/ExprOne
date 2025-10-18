@@ -525,3 +525,141 @@ function getExpressionError(layerIndex, propertyName) {
         return "ERROR:" + errMsg;
     }
 }
+
+// Remove expression from current property
+function removeCurrentExpression(layerIndex, propertyName) {
+    try {
+        var comp = app.project.activeItem;
+        if (!(comp instanceof CompItem)) {
+            return "ERROR:No active composition.";
+        }
+
+        var layer = comp.layer(layerIndex);
+        if (!layer) {
+            return "ERROR:Layer not found.";
+        }
+
+        // Split property path
+        var pathParts = propertyName.split(" → ");
+
+        // Search for property from layer
+        var targetProp = layer;
+        var found = true;
+        for (var j = 0; j < pathParts.length; j++) {
+            try {
+                targetProp = targetProp.property(pathParts[j]);
+                if (!targetProp) {
+                    found = false;
+                    break;
+                }
+            } catch (e) {
+                found = false;
+                break;
+            }
+        }
+
+        if (!found || !targetProp) {
+            return "ERROR:Property not found.";
+        }
+
+        // Remove expression
+        targetProp.expression = "";
+
+        return "SUCCESS:Expression removed from " + propertyName;
+
+    } catch (e) {
+        logError("Remove Current Expression", e);
+        return "ERROR:" + e.toString();
+    }
+}
+
+// Remove all expressions from selected layers
+function removeAllExpressions(layerIndices) {
+    try {
+        var comp = app.project.activeItem;
+        if (!(comp instanceof CompItem)) {
+            return "ERROR:No active composition.";
+        }
+
+        var removedCount = 0;
+        var layerArray = layerIndices.split(',');
+
+        for (var i = 0; i < layerArray.length; i++) {
+            var layerIndex = parseInt(layerArray[i]);
+            var layer = comp.layer(layerIndex);
+
+            if (layer) {
+                // Remove expressions from all properties
+                removeExpressionsFromLayer(layer);
+                removedCount++;
+            }
+        }
+
+        return "SUCCESS:Expressions removed from " + removedCount + " layer(s)";
+
+    } catch (e) {
+        logError("Remove All Expressions", e);
+        return "ERROR:" + e.toString();
+    }
+}
+
+// Helper function to remove expressions from all properties of a layer
+function removeExpressionsFromLayer(layer) {
+    try {
+        // Remove expressions from transform properties
+        if (layer.transform) {
+            var transformProps = ["Anchor Point", "Position", "Scale", "Rotation", "Opacity"];
+            for (var i = 0; i < transformProps.length; i++) {
+                try {
+                    var prop = layer.transform.property(transformProps[i]);
+                    if (prop && prop.expression) {
+                        prop.expression = "";
+                    }
+                } catch (e) {
+                    // Property might not exist, continue
+                }
+            }
+        }
+
+        // Remove expressions from effects
+        if (layer.effect) {
+            for (var j = 1; j <= layer.effect.numProperties; j++) {
+                var effect = layer.effect.property(j);
+                if (effect) {
+                    for (var k = 1; k <= effect.numProperties; k++) {
+                        try {
+                            var effectProp = effect.property(k);
+                            if (effectProp && effectProp.expression) {
+                                effectProp.expression = "";
+                            }
+                        } catch (e) {
+                            // Property might not exist, continue
+                        }
+                    }
+                }
+            }
+        }
+
+        // Remove expressions from masks
+        if (layer.mask) {
+            for (var m = 1; m <= layer.mask.numProperties; m++) {
+                var mask = layer.mask.property(m);
+                if (mask) {
+                    for (var n = 1; n <= mask.numProperties; n++) {
+                        try {
+                            var maskProp = mask.property(n);
+                            if (maskProp && maskProp.expression) {
+                                maskProp.expression = "";
+                            }
+                        } catch (e) {
+                            // Property might not exist, continue
+                        }
+                    }
+                }
+            }
+        }
+
+    } catch (e) {
+        logError("Remove Expressions From Layer", e);
+    }
+}

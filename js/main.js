@@ -455,6 +455,8 @@ function setupEventListeners() {
     const customSelectButton = document.getElementById('customSelectButton');
     const customSelectDropdown = document.getElementById('customSelectDropdown');
     const propertySearchInput = document.getElementById('propertySearchInput');
+    const removeCurrentExpressionBtn = document.getElementById('removeCurrentExpressionBtn');
+    const removeAllExpressionsBtn = document.getElementById('removeAllExpressionsBtn');
 
     console.log('thisLayersBtn:', thisLayersBtn);
     console.log('applyBtn:', applyBtn);
@@ -498,6 +500,14 @@ function setupEventListeners() {
 
     if (applyBtn) {
         applyBtn.addEventListener('click', applyExpression);
+    }
+
+    if (removeCurrentExpressionBtn) {
+        removeCurrentExpressionBtn.addEventListener('click', removeCurrentExpression);
+    }
+
+    if (removeAllExpressionsBtn) {
+        removeAllExpressionsBtn.addEventListener('click', removeAllExpressions);
     }
 }
 
@@ -1007,6 +1017,98 @@ function applyExpression() {
                 updateStatus('Apply failed');
             }
         });
+    });
+}
+
+// Remove current expression
+function removeCurrentExpression() {
+    if (!currentProperty) {
+        alert('No property selected');
+        return;
+    }
+
+    if (selectedLayers.length === 0) {
+        alert('No layers selected');
+        return;
+    }
+
+    if (!currentProperty.hasExpression) {
+        alert('No expression found on this property');
+        return;
+    }
+
+    console.log('🗑️ Removing current expression...');
+    console.log('  Property:', currentProperty.name);
+    console.log('  Layer:', selectedLayers[0].index);
+    updateStatus('Removing expression...');
+
+    const layerIndex = selectedLayers[0].index;
+    const escapedPropertyName = currentProperty.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+    const jsxCode = `removeCurrentExpression(${layerIndex}, "${escapedPropertyName}")`;
+    console.log('  JSX code:', jsxCode);
+
+    csInterface.evalScript(jsxCode, function (result) {
+        console.log('Remove result:', result);
+
+        if (result.indexOf('SUCCESS:') === 0) {
+            updateStatus('Expression removed');
+            console.log('✅ Expression removed successfully');
+
+            // Clear editor
+            if (monacoEditor) {
+                monacoEditor.setValue('');
+            }
+
+            // Refresh properties to update UI
+            loadProperties();
+        } else {
+            const errorMsg = result.indexOf('ERROR:') === 0 ? result.substring(6) : 'Unknown error';
+            alert('❌ Failed to remove expression: ' + errorMsg);
+            updateStatus('Remove failed');
+        }
+    });
+}
+
+// Remove all expressions from selected layers
+function removeAllExpressions() {
+    if (selectedLayers.length === 0) {
+        alert('No layers selected');
+        return;
+    }
+
+    const confirmMsg = `Are you sure you want to remove ALL expressions from ${selectedLayers.length} layer(s)?\n\nThis action cannot be undone.`;
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    console.log('🗑️ Removing all expressions...');
+    console.log('  Layers:', selectedLayers.map(l => l.index));
+    updateStatus('Removing all expressions...');
+
+    const layerIndices = selectedLayers.map(l => l.index).join(',');
+    const jsxCode = `removeAllExpressions("${layerIndices}")`;
+    console.log('  JSX code:', jsxCode);
+
+    csInterface.evalScript(jsxCode, function (result) {
+        console.log('Remove all result:', result);
+
+        if (result.indexOf('SUCCESS:') === 0) {
+            updateStatus('All expressions removed');
+            console.log('✅ All expressions removed successfully');
+
+            // Clear editor
+            if (monacoEditor) {
+                monacoEditor.setValue('');
+            }
+
+            // Refresh properties to update UI
+            loadProperties();
+        } else {
+            const errorMsg = result.indexOf('ERROR:') === 0 ? result.substring(6) : 'Unknown error';
+            alert('❌ Failed to remove expressions: ' + errorMsg);
+            updateStatus('Remove failed');
+        }
     });
 }
 
