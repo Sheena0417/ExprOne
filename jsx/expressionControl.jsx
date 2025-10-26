@@ -71,7 +71,7 @@ function listVisibleExpressionProps(layerIndex) {
                     var prop = group.property(i);
                     if (!prop) continue;
 
-                    var fullPath = path + " → " + prop.name;
+                    var fullPath = path + " > " + prop.name;
 
                     if (prop.numProperties > 0 && !(prop instanceof Property)) {
                         // Group property
@@ -115,14 +115,14 @@ function listVisibleExpressionProps(layerIndex) {
                 try {
                     var effect = effects.property(i);
                     if (!effect) continue;
-                    var baseLabel = "Effects → " + effect.name;
+                    var baseLabel = "Effects > " + effect.name;
                     for (var j = 1; j <= effect.numProperties; j++) {
                         try {
                             var subProp = effect.property(j);
                             if (subProp && subProp.canSetExpression) {
                                 var hasExpr = (subProp.expression && subProp.expression !== "");
                                 result.push({
-                                    name: baseLabel + " → " + subProp.name,
+                                    name: baseLabel + " > " + subProp.name,
                                     hasExpression: hasExpr
                                 });
                                 cachedProps.push(subProp);
@@ -172,7 +172,7 @@ function listVisibleExpressionProps(layerIndex) {
                     var styleGroup = layerStyles.property(k);
                     if (styleGroup && styleGroup.numProperties > 0 &&
                         styleGroup.enabled && styleGroup.active) {
-                        scanGroup(styleGroup, "Layer Styles → " + styleGroup.name, true);
+                        scanGroup(styleGroup, "Layer Styles > " + styleGroup.name, true);
                     }
                 } catch (e) { }
             }
@@ -308,7 +308,7 @@ function getPropertyFullPath(prop) {
         current = current.parentProperty;
     }
 
-    return path.join(" → ");
+    return path.join(" > ");
 }
 
 // Apply expression to multiple layers
@@ -333,7 +333,7 @@ function applyExpressionToLayers(layerIndices, propertyName, expression) {
                 }
 
                 // Split property path
-                var pathParts = propertyName.split(" → ");
+                var pathParts = propertyName.split(" > ");
 
                 // Search for property from layer
                 var targetProp = layer;
@@ -503,7 +503,7 @@ function getExpressionError(layerIndex, propertyName) {
         }
 
         // Split property path
-        var pathParts = propertyName.split(" → ");
+        var pathParts = propertyName.split(" > ");
 
         // Search for property from layer
         var targetProp = layer;
@@ -556,7 +556,7 @@ function removeCurrentExpression(layerIndex, propertyName) {
         }
 
         // Split property path
-        var pathParts = propertyName.split(" → ");
+        var pathParts = propertyName.split(" > ");
 
         // Search for property from layer
         var targetProp = layer;
