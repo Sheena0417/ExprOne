@@ -10,7 +10,7 @@ let allProperties = [];
 let currentProperty = null;
 let projectInfo = {
     compositions: [],
-    layers: [],
+    compLayers: {},  // コンポジションごとのレイヤー情報 { "comp名": ["layer1", "layer2", ...] }
     effects: []
 };
 
@@ -209,6 +209,42 @@ function registerCompletionProvider() {
 
             const suggestions = [];
 
+            // カーソル位置の前のテキストを取得してコンテキストを解析
+            const textBeforeCursor = model.getValueInRange({
+                startLineNumber: position.lineNumber,
+                startColumn: 1,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column
+            });
+
+            console.log('Text before cursor:', textBeforeCursor);
+
+            // comp("コンプ名").lay のパターンをチェック (layer の途中でもマッチ)
+            const compLayerPattern = /comp\(["']([^"']+)["']\)\.l/;
+            const compMatch = textBeforeCursor.match(compLayerPattern);
+
+            if (compMatch) {
+                // comp("test").lay のコンテキスト: 該当するコンプのレイヤーのみを補完
+                const compName = compMatch[1];
+                console.log('Detected comp().layer context for:', compName);
+
+                if (projectInfo.compLayers[compName]) {
+                    projectInfo.compLayers[compName].forEach(layer => {
+                        suggestions.push({
+                            label: `layer("${layer}")`,
+                            kind: monaco.languages.CompletionItemKind.Reference,
+                            insertText: `layer("${layer}")`,
+                            documentation: `Layer in ${compName}: ${layer}`,
+                            range: range
+                        });
+                    });
+                }
+
+                return { suggestions: suggestions };
+            }
+
+            // 通常のコンテキスト: すべての補完候補を表示
+
             // Add keywords
             aeKeywords.forEach(item => {
                 suggestions.push({
@@ -252,17 +288,6 @@ function registerCompletionProvider() {
                     kind: monaco.languages.CompletionItemKind.Reference,
                     insertText: `comp("${comp}")`,
                     documentation: `Composition: ${comp}`,
-                    range: range
-                });
-            });
-
-            // Dynamic suggestions: Layers
-            projectInfo.layers.forEach(layer => {
-                suggestions.push({
-                    label: `layer("${layer}")`,
-                    kind: monaco.languages.CompletionItemKind.Reference,
-                    insertText: `layer("${layer}")`,
-                    documentation: `Layer: ${layer}`,
                     range: range
                 });
             });
@@ -590,13 +615,40 @@ function updateProjectInfo() {
             parts.forEach(part => {
                 if (part.indexOf('COMPS:') === 0) {
                     const comps = part.substring(6);
-                    projectInfo.compositions = comps ? comps.split(',').map(c => c.replace(/\\,/g, ',')) : [];
-                } else if (part.indexOf('LAYERS:') === 0) {
-                    const layers = part.substring(7);
-                    projectInfo.layers = layers ? layers.split(',').map(l => l.replace(/\\,/g, ',')) : [];
+                    projectInfo.compositions = comps ? comps.split(',').map(c => c.replace(/\\,/g, ',').replace(/\\\|/g, '|')) : [];
+                } else if (part.indexOf('COMP_LAYERS:') === 0) {
+                    const compLayersData = part.substring(12);
+                    projectInfo.compLayers = {};
+
+                    if (compLayersData) {
+                        // コンポジションごとのデータを分割 (;; で区切られている)
+                        const compEntries = compLayersData.split(';;');
+
+                        compEntries.forEach(entry => {
+                            if (entry) {
+                                // コンプ名とレイヤーリストを分割 (:: で区切られている)
+                                const separatorIndex = entry.indexOf('::');
+                                if (separatorIndex !== -1) {
+                                    const compName = entry.substring(0, separatorIndex)
+                                        .replace(/\\,/g, ',')
+                                        .replace(/\\\|/g, '|')
+                                        .replace(/\\;/g, ';');
+
+                                    const layersStr = entry.substring(separatorIndex + 2);
+                                    const layers = layersStr ? layersStr.split(',').map(l =>
+                                        l.replace(/\\,/g, ',')
+                                         .replace(/\\\|/g, '|')
+                                         .replace(/\\;/g, ';')
+                                    ) : [];
+
+                                    projectInfo.compLayers[compName] = layers;
+                                }
+                            }
+                        });
+                    }
                 } else if (part.indexOf('EFFECTS:') === 0) {
                     const effects = part.substring(8);
-                    projectInfo.effects = effects ? effects.split(',').map(e => e.replace(/\\,/g, ',')) : [];
+                    projectInfo.effects = effects ? effects.split(',').map(e => e.replace(/\\,/g, ',').replace(/\\\|/g, '|')) : [];
                 }
             });
 

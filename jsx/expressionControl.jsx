@@ -417,7 +417,7 @@ function findMatchingPropInLayer(layer, sourceProp) {
 function getProjectInfo() {
     try {
         var compositions = [];
-        var layers = [];
+        var compLayers = {};  // コンポジションごとのレイヤー情報を格納
         var effects = [];
 
         // Get all compositions in the project
@@ -425,16 +425,19 @@ function getProjectInfo() {
             var item = app.project.item(i);
             if (item instanceof CompItem) {
                 compositions.push(item.name);
+
+                // 各コンポジションのレイヤーを取得
+                var layersInComp = [];
+                for (var j = 1; j <= item.numLayers; j++) {
+                    layersInComp.push(item.layer(j).name);
+                }
+                compLayers[item.name] = layersInComp;
             }
         }
 
-        // Get layers from active composition
+        // Get effects from selected layers in active composition
         var comp = app.project.activeItem;
         if (comp instanceof CompItem) {
-            for (var j = 1; j <= comp.numLayers; j++) {
-                layers.push(comp.layer(j).name);
-            }
-
             // Get effects from selected layers
             if (comp.selectedLayers.length > 0) {
                 var layer = comp.selectedLayers[0];
@@ -447,23 +450,36 @@ function getProjectInfo() {
             }
         }
 
-        // Build JSON string manually (ExtendScript compatibility)
+        // Build result string
         var result = "SUCCESS:COMPS:";
         for (var c = 0; c < compositions.length; c++) {
             if (c > 0) result += ",";
-            result += compositions[c].replace(/,/g, "\\,");
+            result += compositions[c].replace(/,/g, "\\,").replace(/\|/g, "\\|");
         }
 
-        result += "|LAYERS:";
-        for (var l = 0; l < layers.length; l++) {
-            if (l > 0) result += ",";
-            result += layers[l].replace(/,/g, "\\,");
+        // コンポジションごとのレイヤー情報を追加
+        result += "|COMP_LAYERS:";
+        var compCount = 0;
+        for (var compName in compLayers) {
+            if (compLayers.hasOwnProperty(compName)) {
+                if (compCount > 0) result += ";;";  // コンポジション間の区切り
+
+                // コンプ名とレイヤーリストを追加
+                result += compName.replace(/,/g, "\\,").replace(/\|/g, "\\|").replace(/;/g, "\\;") + "::";
+
+                var layers = compLayers[compName];
+                for (var l = 0; l < layers.length; l++) {
+                    if (l > 0) result += ",";
+                    result += layers[l].replace(/,/g, "\\,").replace(/\|/g, "\\|").replace(/;/g, "\\;");
+                }
+                compCount++;
+            }
         }
 
         result += "|EFFECTS:";
         for (var e = 0; e < effects.length; e++) {
             if (e > 0) result += ",";
-            result += effects[e].replace(/,/g, "\\,");
+            result += effects[e].replace(/,/g, "\\,").replace(/\|/g, "\\|");
         }
 
         return result;
