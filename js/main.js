@@ -2,7 +2,7 @@
  * ExprOne - Simple Version with Monaco Editor
  */
 
-// グローバル変数
+// Global variables
 let csInterface;
 let monacoEditor;
 let selectedLayers = [];
@@ -10,22 +10,22 @@ let allProperties = [];
 let currentProperty = null;
 let projectInfo = {
     compositions: [],
-    compLayers: {},  // コンポジションごとのレイヤー情報 { "comp名": ["layer1", "layer2", ...] }
+    compLayers: {},  // Layer information per composition { "comp_name": ["layer1", "layer2", ...] }
     effects: []
 };
 
-// デバッグ情報表示（画面上に表示） - 先に定義
-// ※必要に応じてコメント解除してください
+// Debug information display (defined early)
+// Uncomment if needed for debugging
 function showDebug(message) {
     // const debugInfo = document.getElementById('debugInfo');
     // if (debugInfo) {
     //     const time = new Date().toLocaleTimeString();
     //     debugInfo.innerHTML = `[${time}] ${message}<br>` + debugInfo.innerHTML;
     // }
-    console.log('DEBUG:', message);  // コンソールには引き続き出力
+    console.log('DEBUG:', message);  // Continue logging to console
 }
 
-// ステータス更新
+// Update status
 function updateStatus(message) {
     const statusText = document.getElementById('statusText');
     if (statusText) {
@@ -34,62 +34,62 @@ function updateStatus(message) {
     console.log('Status:', message);
 }
 
-// Monaco Editor の loader.js を動的に読み込む
+// Dynamically load Monaco Editor's loader.js
 function loadMonacoLoader() {
     console.log('📦 Loading Monaco loader.js...');
-    showDebug('📦 Monaco Editor を読み込み中...');
+    showDebug('📦 Loading Monaco Editor...');
 
-    // Node.jsのrequireを一時的に退避して別名で保存
+    // Temporarily save Node.js require with a different name
     if (typeof window.require !== 'undefined') {
         console.log('💾 Saving Node.js require as nodeRequire');
         window.nodeRequire = window.require;
-        delete window.require;  // 完全に削除
-        delete window.module;   // moduleも削除（AMDとの競合を防ぐ）
+        delete window.require;  // Completely remove
+        delete window.module;   // Also remove module (prevent AMD conflicts)
     }
 
     var script = document.createElement('script');
     script.src = './lib/vs/loader.js';
-    script.async = false;  // 同期的に読み込む
+    script.async = false;  // Load synchronously
 
     script.onload = function () {
         console.log('✅ loader.js script loaded');
 
-        // onloadの直後にrequireをチェック（setTimeoutなし）
+        // Check require immediately after onload (no setTimeout)
         console.log('🔍 Immediate require check:');
         console.log('  typeof window.require:', typeof window.require);
         console.log('  window.require:', window.require);
 
-        // requireが定義されているかチェック
+        // Check if require is defined
         if (typeof window.require !== 'undefined' && window.require) {
             console.log('  typeof window.require.config:', typeof window.require.config);
 
             if (typeof window.require.config === 'function') {
                 console.log('✅ Monaco require.config is available!');
-                showDebug('✅ Monaco Loader 読み込み完了');
+                showDebug('✅ Monaco Loader loaded successfully');
 
-                // Monaco requireを保存
+                // Save Monaco require
                 window.monacoRequire = window.require;
 
                 initializeMonacoEditor();
             } else {
                 console.error('❌ require exists but config is not a function');
                 console.error('  window.require:', window.require);
-                showDebug('❌ require.config が見つかりません');
+                showDebug('❌ require.config not found');
             }
         } else {
             console.error('❌ window.require is not defined after loading loader.js');
-            showDebug('❌ Monaco Loader の読み込みに失敗');
+            showDebug('❌ Failed to load Monaco Loader');
 
-            // フォールバック: グローバルスコープを確認
+            // Fallback: Check global scope
             console.log('🔍 Checking global scope...');
             console.log('  window keys:', Object.keys(window).filter(k => k.includes('require') || k.includes('define')));
         }
     };
     script.onerror = function (error) {
         console.error('❌ Failed to load loader.js:', error);
-        showDebug('❌ loader.js の読み込みに失敗しました');
+        showDebug('❌ Failed to load loader.js');
 
-        // Node.jsのrequireを復元
+        // Restore Node.js require
         if (window.nodeRequire) {
             window.require = window.nodeRequire;
         }
@@ -209,7 +209,7 @@ function registerCompletionProvider() {
 
             const suggestions = [];
 
-            // カーソル位置の前のテキストを取得してコンテキストを解析
+            // Get text before cursor position and analyze context
             const textBeforeCursor = model.getValueInRange({
                 startLineNumber: position.lineNumber,
                 startColumn: 1,
@@ -219,16 +219,16 @@ function registerCompletionProvider() {
 
             console.log('Text before cursor:', textBeforeCursor);
 
-            // comp("コンプ名").lay のパターンをチェック (layer の途中でもマッチ)
+            // Check for comp("compName").lay pattern (matches partial "layer")
             const compLayerPattern = /comp\(["']([^"']+)["']\)\.l/;
             const compMatch = textBeforeCursor.match(compLayerPattern);
 
-            // thisComp.lay のパターンもチェック
+            // Also check for thisComp.lay pattern
             const thisCompLayerPattern = /thisComp\.l/;
             const thisCompMatch = textBeforeCursor.match(thisCompLayerPattern);
 
             if (compMatch) {
-                // comp("test").lay のコンテキスト: 該当するコンプのレイヤーのみを補完
+                // comp("test").lay context: suggest only layers from the specified comp
                 const compName = compMatch[1];
                 console.log('Detected comp().layer context for:', compName);
 
@@ -246,14 +246,14 @@ function registerCompletionProvider() {
 
                 return { suggestions: suggestions };
             } else if (thisCompMatch) {
-                // thisComp.lay のコンテキスト: アクティブなコンポジションのレイヤーを補完
+                // thisComp.lay context: suggest layers from active composition
                 console.log('Detected thisComp.layer context');
 
-                // アクティブコンポジションのレイヤーを取得
-                // selectedLayersが存在する場合、その最初のレイヤーが属するコンプのレイヤーを使う
-                // または、projectInfo.compLayersから最初に見つかったコンプのレイヤーを使う
+                // Get layers from active composition
+                // If selectedLayers exists, use layers from the comp that the first layer belongs to
+                // Otherwise, use layers from projectInfo.compLayers
 
-                // 全コンポジションのレイヤーを統合して表示（アクティブコンプを特定できない場合）
+                // Show all layers from all compositions (when active comp cannot be determined)
                 const allLayers = new Set();
                 Object.values(projectInfo.compLayers).forEach(layers => {
                     layers.forEach(layer => allLayers.add(layer));
@@ -272,7 +272,7 @@ function registerCompletionProvider() {
                 return { suggestions: suggestions };
             }
 
-            // 通常のコンテキスト: すべての補完候補を表示
+            // Normal context: show all completion suggestions
 
             // Add keywords
             aeKeywords.forEach(item => {
@@ -337,13 +337,13 @@ function registerCompletionProvider() {
     });
 }
 
-// Monaco Environment設定（ローカル Blob Worker）
+// Monaco Environment configuration (Local Blob Worker)
 window.MonacoEnvironment = {
     getWorkerUrl: function (moduleId, label) {
-        // 拡張機能のルートパスを取得
+        // Get extension root path
         const extensionPath = window.location.href.replace(/\/[^\/]*$/, '');
 
-        // Workerファイルのパスを構築
+        // Construct worker file path
         let workerPath;
         if (label === 'typescript' || label === 'javascript') {
             workerPath = extensionPath + '/lib/vs/language/typescript/ts.worker.js';
@@ -351,7 +351,7 @@ window.MonacoEnvironment = {
             workerPath = extensionPath + '/lib/vs/editor/editor.worker.js';
         }
 
-        // Blob URLで返す（file://プロトコルでWorkerを動作させるため）
+        // Return as Blob URL (to make Worker work with file:// protocol)
         return URL.createObjectURL(new Blob([`
             self.MonacoEnvironment = { baseUrl: '${extensionPath}/lib/vs/' };
             importScripts('${workerPath}');
@@ -359,18 +359,18 @@ window.MonacoEnvironment = {
     }
 };
 
-// 初期化
+// Initialization
 document.addEventListener('DOMContentLoaded', function () {
     console.log('🚀 Initializing ExprOne...');
     console.log('DOM is ready');
 
-    // デバッグ: ボタンの存在確認
+    // Debug: Check button existence
     const testBtn = document.getElementById('thisLayersBtn');
     console.log('Button exists at init:', !!testBtn);
 
     initializeCSInterface();
 
-    // Monaco Editor の loader.js を動的に読み込む
+    // Dynamically load Monaco Editor's loader.js
     loadMonacoLoader();
 
     console.log('About to setup event listeners...');
@@ -378,82 +378,82 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('Event listeners setup complete');
 });
 
-// CSInterface初期化
+// Initialize CSInterface
 function initializeCSInterface() {
     csInterface = new CSInterface();
 
-    // ExtendScriptファイルのパスを設定
+    // Set ExtendScript file path
     const extensionRoot = csInterface.getSystemPath(SystemPath.EXTENSION);
     const jsxFile = extensionRoot + '/jsx/expressionControl.jsx';
 
     console.log('Loading ExtendScript from:', jsxFile);
 
-    // ExtendScriptをロード
+    // Load ExtendScript
     csInterface.evalScript(`$.evalFile("${jsxFile}")`, function (result) {
         console.log('ExtendScript load result:', result);
-        showDebug(`📜 JSX読込結果: ${result || 'success'}`);
+        showDebug(`📜 JSX load result: ${result || 'success'}`);
 
         if (result === 'undefined' || result === '') {
             updateStatus('ExtendScript loaded ✓');
 
-            // テスト: 関数が定義されているか確認
+            // Test: Check if function is defined
             csInterface.evalScript('typeof getSelectedLayers', function (typeResult) {
                 console.log('getSelectedLayers type:', typeResult);
                 showDebug(`✅ getSelectedLayers: ${typeResult}`);
 
                 if (typeResult !== 'function') {
-                    showDebug('❌ JSX関数が定義されていません！');
+                    showDebug('❌ JSX function not defined!');
                 }
             });
 
-            // applyExpressionToLayers関数の確認
+            // Check applyExpressionToLayers function
             csInterface.evalScript('typeof applyExpressionToLayers', function (typeResult) {
                 console.log('applyExpressionToLayers type:', typeResult);
                 showDebug(`✅ applyExpressionToLayers: ${typeResult}`);
 
                 if (typeResult !== 'function') {
-                    showDebug('❌ applyExpressionToLayers が定義されていません！');
+                    showDebug('❌ applyExpressionToLayers not defined!');
                 }
             });
         } else {
             console.error('ExtendScript error:', result);
             updateStatus('ExtendScript error');
-            showDebug(`❌ JSX読込エラー: ${result}`);
+            showDebug(`❌ JSX load error: ${result}`);
         }
     });
 }
 
-// Monaco Editor初期化
+// Initialize Monaco Editor
 function initializeMonacoEditor() {
-    // ローカルの Monaco Editor を使用
+    // Use local Monaco Editor
     require.config({ paths: { vs: './lib/vs' } });
 
     require(['vs/editor/editor.main'], function () {
         console.log('✅ Monaco Editor loaded');
 
-        // After Effects Expression言語を登録
+        // Register After Effects Expression language
         monaco.languages.register({ id: 'ae-expression' });
 
-        // シンタックスハイライト設定
+        // Syntax highlighting configuration
         monaco.languages.setMonarchTokensProvider('ae-expression', {
             tokenizer: {
                 root: [
-                    // AE キーワード
+                    // AE keywords
                     [/\b(thisComp|thisLayer|thisProperty|time|value|index)\b/, 'keyword.ae'],
-                    // AE 関数
+                    // AE functions
                     [/\b(wiggle|linear|ease|easeIn|easeOut|loopIn|loopOut|random|clamp)\b/, 'function.ae'],
-                    // AE プロパティ
+                    // AE properties
                     [/\b(position|scale|rotation|opacity|anchorPoint)\b/, 'property.ae'],
-                    // JS キーワード
+                    // JS keywords
                     [/\b(if|else|for|while|function|var|let|const|return)\b/, 'keyword.js'],
-                    // コメント
+                    // Comments
                     [/\/\/.*$/, 'comment'],
-                    // 文字列
+                    // Strings
                     [/"([^"\\]|\\.)*"/, 'string'],
                     [/'([^'\\]|\\.)*'/, 'string'],
-                    // 数値
+                    // Numbers
                     [/\d+(\.\d+)?/, 'number'],
-                    // 演算子
+                    // Operators
                     [/[{}()\[\]]/, 'delimiter.bracket'],
                     [/[;,.]/, 'delimiter'],
                     [/[+\-*/%=!<>]/, 'operator']
@@ -461,7 +461,7 @@ function initializeMonacoEditor() {
             }
         });
 
-        // カスタムテーマ
+        // Custom theme
         monaco.editor.defineTheme('ae-dark', {
             base: 'vs-dark',
             inherit: true,
@@ -482,7 +482,7 @@ function initializeMonacoEditor() {
         // Register autocompletion provider
         registerCompletionProvider();
 
-        // エディター作成
+        // Create editor
         monacoEditor = monaco.editor.create(document.getElementById('monacoEditor'), {
             value: '// After Effects Expression\nvalue',
             language: 'ae-expression',
@@ -500,7 +500,7 @@ function initializeMonacoEditor() {
     });
 }
 
-// イベントリスナー設定
+// Event listener setup
 function setupEventListeners() {
     console.log('Setting up event listeners...');
 
@@ -520,15 +520,15 @@ function setupEventListeners() {
         console.log('✅ Adding click listener to thisLayersBtn');
         thisLayersBtn.addEventListener('click', function () {
             console.log('🖱️ thisLayersBtn clicked!');
-            showDebug('🖱️ This Layer(s) ボタンがクリックされました');
+            showDebug('🖱️ This Layer(s) button clicked');
             refreshLayers();
         });
     } else {
         console.error('❌ thisLayersBtn not found!');
-        showDebug('❌ This Layer(s) ボタンが見つかりません');
+        showDebug('❌ This Layer(s) button not found');
     }
 
-    // カスタムドロップダウンのイベント
+    // Custom dropdown events
     if (customSelectButton) {
         customSelectButton.addEventListener('click', function (e) {
             e.stopPropagation();
@@ -536,14 +536,14 @@ function setupEventListeners() {
         });
     }
 
-    // 検索フィルター
+    // Search filter
     if (propertySearchInput) {
         propertySearchInput.addEventListener('input', function (e) {
             filterProperties(e.target.value);
         });
     }
 
-    // ドロップダウン外をクリックで閉じる
+    // Close dropdown when clicking outside
     document.addEventListener('click', function (e) {
         if (customSelectDropdown && customSelectDropdown.style.display === 'block') {
             if (!customSelectDropdown.contains(e.target) && e.target !== customSelectButton) {
@@ -565,7 +565,7 @@ function setupEventListeners() {
     }
 }
 
-// レイヤースキャン
+// Layer scanning
 function refreshLayers() {
     console.log('🔍 Scanning layers...');
     showDebug('🔍 refreshLayers() called');
@@ -584,7 +584,7 @@ function refreshLayers() {
             return;
         }
 
-        // レイヤー情報を取得
+        // Get layer information
         csInterface.evalScript('getSelectedLayers()', function (result) {
             console.log('getSelectedLayers result:', result);
 
@@ -650,12 +650,12 @@ function updateProjectInfo() {
                     projectInfo.compLayers = {};
 
                     if (compLayersData) {
-                        // コンポジションごとのデータを分割 (;; で区切られている)
+                        // Split data per composition (separated by ;;)
                         const compEntries = compLayersData.split(';;');
 
                         compEntries.forEach(entry => {
                             if (entry) {
-                                // コンプ名とレイヤーリストを分割 (:: で区切られている)
+                                // Split comp name and layer list (separated by ::)
                                 const separatorIndex = entry.indexOf('::');
                                 if (separatorIndex !== -1) {
                                     const compName = entry.substring(0, separatorIndex)
@@ -700,14 +700,14 @@ function loadProperties() {
     if (selectedLayers.length === 1) {
         const layerIndex = selectedLayers[0].index;
         console.log('Calling listVisibleExpressionProps with index:', layerIndex);
-        showDebug(`📞 JSX呼出: listVisibleExpressionProps(${layerIndex})`);
+        showDebug(`📞 JSX call: listVisibleExpressionProps(${layerIndex})`);
         csInterface.evalScript(`listVisibleExpressionProps(${layerIndex})`, function (result) {
             console.log('Raw result from listVisibleExpressionProps:', result);
             console.log('Result type:', typeof result);
             console.log('Result length:', result ? result.length : 'null');
-            showDebug(`📥 JSX応答: ${result ? result.substring(0, 100) : 'null'}`);
+            showDebug(`📥 JSX response: ${result ? result.substring(0, 100) : 'null'}`);
 
-            // 完全なデータをコンソールに出力
+            // Output complete data to console
             console.log('=== FULL JSX RESPONSE ===');
             console.log(result);
             console.log('=== END ===');
@@ -717,16 +717,16 @@ function loadProperties() {
     } else {
         const layerIndices = selectedLayers.map(l => l.index).join(',');
         console.log('Calling listCommonExpressionProps with indices:', layerIndices);
-        showDebug(`📞 JSX呼出: listCommonExpressionProps([${layerIndices}])`);
+        showDebug(`📞 JSX call: listCommonExpressionProps([${layerIndices}])`);
         csInterface.evalScript(`listCommonExpressionProps([${layerIndices}])`, function (result) {
             console.log('Raw result from listCommonExpressionProps:', result);
-            showDebug(`📥 JSX応答: ${result ? result.substring(0, 50) + '...' : 'null'}`);
+            showDebug(`📥 JSX response: ${result ? result.substring(0, 50) + '...' : 'null'}`);
             handlePropertiesResult(result);
         });
     }
 }
 
-// プロパティ結果処理
+// Property result processing
 function handlePropertiesResult(result) {
     console.log('Properties result:', result);
     console.log('Result starts with ERROR:', result.indexOf('ERROR:') === 0);
@@ -795,13 +795,13 @@ function handlePropertiesResult(result) {
     }
 }
 
-// カスタムドロップダウンの開閉
+// Toggle custom dropdown
 function toggleCustomDropdown() {
     const dropdown = document.getElementById('customSelectDropdown');
     if (dropdown.style.display === 'none') {
         dropdown.style.display = 'block';
         document.getElementById('propertySearchInput').value = '';
-        filterProperties('');  // 検索をリセット
+        filterProperties('');  // Reset search
     } else {
         dropdown.style.display = 'none';
     }
@@ -812,7 +812,7 @@ function closeCustomDropdown() {
     dropdown.style.display = 'none';
 }
 
-// プロパティ検索フィルター
+// Property search filter
 function filterProperties(searchText) {
     const options = document.querySelectorAll('.custom-select-option:not(.disabled)');
     const lowerSearch = searchText.toLowerCase();
@@ -827,7 +827,7 @@ function filterProperties(searchText) {
     });
 }
 
-// カスタムドロップダウンでプロパティを選択
+// Select property in custom dropdown
 function selectCustomProperty(propertyData) {
     currentProperty = propertyData;
     console.log('Selected property:', currentProperty.name);
@@ -841,16 +841,16 @@ function selectCustomProperty(propertyData) {
     }
     button.title = currentProperty.name + (currentProperty.hasExpression ? ' (Expression applied)' : '');
 
-    // 選択状態をハイライト
+    // Highlight selected state
     document.querySelectorAll('.custom-select-option').forEach(opt => {
         opt.classList.remove('selected');
     });
     event.target.classList.add('selected');
 
-    // ドロップダウンを閉じる
+    // Close dropdown
     closeCustomDropdown();
 
-    // 既存のエクスプレッションを読み込み
+    // Load existing expression
     if (currentProperty.hasExpression && currentProperty.layerIndex !== -1) {
         csInterface.evalScript(`getExpressionContent(${currentProperty.layerIndex}, "${currentProperty.name}")`, function (result) {
             console.log('Expression content result:', result);
@@ -912,15 +912,15 @@ function updatePropertyList() {
     button.textContent = 'Select a property...';
 }
 
-// プロパティ選択時
+// On property selection
 function onPropertySelected(event) {
     const selectedOption = event.target.selectedOptions[0];
 
-    // 空のオプション（「プロパティを選択...」）が選択された場合は何もしない
+    // Do nothing if empty option ("Select a property...") is selected
     if (!selectedOption || !selectedOption.value || !selectedOption.dataset.property) {
         currentProperty = null;
         if (window.editor) {
-            window.editor.setValue('');  // エディタをクリア
+            window.editor.setValue('');  // Clear editor
         }
         return;
     }
@@ -928,7 +928,7 @@ function onPropertySelected(event) {
     currentProperty = JSON.parse(selectedOption.dataset.property);
     console.log('Selected property:', currentProperty.name);
 
-    // 既存のエクスプレッションを読み込み
+    // Load existing expression
     if (currentProperty.hasExpression && currentProperty.layerIndex !== -1) {
         csInterface.evalScript(`getExpressionContent(${currentProperty.layerIndex}, "${currentProperty.name}")`, function (result) {
             console.log('Expression content result:', result);
@@ -1062,7 +1062,7 @@ function applyExpression() {
             return;
         }
 
-        // エクスプレッション文字列をエスケープ（二重引用符とバックスラッシュをエスケープ）
+        // Escape expression string (escape double quotes and backslashes)
         const escapedExpression = expression.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
         const layerIndices = selectedLayers.map(l => l.index).join(',');
         const escapedPropertyName = currentProperty.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
