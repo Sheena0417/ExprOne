@@ -223,6 +223,10 @@ function registerCompletionProvider() {
             const compLayerPattern = /comp\(["']([^"']+)["']\)\.l/;
             const compMatch = textBeforeCursor.match(compLayerPattern);
 
+            // thisComp.lay のパターンもチェック
+            const thisCompLayerPattern = /thisComp\.l/;
+            const thisCompMatch = textBeforeCursor.match(thisCompLayerPattern);
+
             if (compMatch) {
                 // comp("test").lay のコンテキスト: 該当するコンプのレイヤーのみを補完
                 const compName = compMatch[1];
@@ -239,6 +243,31 @@ function registerCompletionProvider() {
                         });
                     });
                 }
+
+                return { suggestions: suggestions };
+            } else if (thisCompMatch) {
+                // thisComp.lay のコンテキスト: アクティブなコンポジションのレイヤーを補完
+                console.log('Detected thisComp.layer context');
+
+                // アクティブコンポジションのレイヤーを取得
+                // selectedLayersが存在する場合、その最初のレイヤーが属するコンプのレイヤーを使う
+                // または、projectInfo.compLayersから最初に見つかったコンプのレイヤーを使う
+
+                // 全コンポジションのレイヤーを統合して表示（アクティブコンプを特定できない場合）
+                const allLayers = new Set();
+                Object.values(projectInfo.compLayers).forEach(layers => {
+                    layers.forEach(layer => allLayers.add(layer));
+                });
+
+                allLayers.forEach(layer => {
+                    suggestions.push({
+                        label: `layer("${layer}")`,
+                        kind: monaco.languages.CompletionItemKind.Reference,
+                        insertText: `layer("${layer}")`,
+                        documentation: `Layer: ${layer}`,
+                        range: range
+                    });
+                });
 
                 return { suggestions: suggestions };
             }
