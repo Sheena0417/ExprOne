@@ -1,8 +1,11 @@
 dist
 node_modules
-.DS_Store*.p12
+.DS_Store
+*.p12
 *.pem
 *.crt
 *.key
 certs/
 distribute/
+__build_temp/
+*.zxp
