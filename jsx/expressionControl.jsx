@@ -418,6 +418,8 @@ function getProjectInfo() {
     try {
         var compositions = [];
         var compLayers = {};  // Store layer information for each composition
+        var layerEffects = {};  // Store effect information for each comp > layer
+        var layerEffectProperties = {};  // Store effect property information for each comp > layer > effect
         var effects = [];
 
         // Get all compositions in the project
@@ -429,13 +431,39 @@ function getProjectInfo() {
                 // Get layers for each composition
                 var layersInComp = [];
                 for (var j = 1; j <= item.numLayers; j++) {
-                    layersInComp.push(item.layer(j).name);
+                    var layer = item.layer(j);
+                    layersInComp.push(layer.name);
+
+                    // Get effects for each layer
+                    var effectsGroup = layer.property("ADBE Effect Parade");
+                    if (effectsGroup && effectsGroup.numProperties > 0) {
+                        var effectList = [];
+                        for (var k = 1; k <= effectsGroup.numProperties; k++) {
+                            var effect = effectsGroup.property(k);
+                            var effectName = effect.name;
+                            effectList.push(effectName);
+
+                            // Get properties for each effect
+                            var propList = [];
+                            for (var p = 1; p <= effect.numProperties; p++) {
+                                var effectProp = effect.property(p);
+                                propList.push(effectProp.name);
+                            }
+
+                            // Store effect properties with key: "compName::layerName::effectName"
+                            var effectKey = item.name + "::" + layer.name + "::" + effectName;
+                            layerEffectProperties[effectKey] = propList;
+                        }
+                        // Store with key: "compName::layerName"
+                        var key = item.name + "::" + layer.name;
+                        layerEffects[key] = effectList;
+                    }
                 }
                 compLayers[item.name] = layersInComp;
             }
         }
 
-        // Get effects from selected layers in active composition
+        // Get effects from selected layers in active composition (for backward compatibility)
         var comp = app.project.activeItem;
         if (comp instanceof CompItem) {
             // Get effects from selected layers
@@ -480,6 +508,44 @@ function getProjectInfo() {
         for (var e = 0; e < effects.length; e++) {
             if (e > 0) result += ",";
             result += effects[e].replace(/,/g, "\\,").replace(/\|/g, "\\|");
+        }
+
+        // Add layer effects information
+        result += "|LAYER_EFFECTS:";
+        var effectCount = 0;
+        for (var layerKey in layerEffects) {
+            if (layerEffects.hasOwnProperty(layerKey)) {
+                if (effectCount > 0) result += ";;";  // Separator between layers
+
+                // Add comp::layer key and effect list
+                result += layerKey.replace(/,/g, "\\,").replace(/\|/g, "\\|").replace(/;/g, "\\;") + "::";
+
+                var effectList = layerEffects[layerKey];
+                for (var m = 0; m < effectList.length; m++) {
+                    if (m > 0) result += ",";
+                    result += effectList[m].replace(/,/g, "\\,").replace(/\|/g, "\\|").replace(/;/g, "\\;");
+                }
+                effectCount++;
+            }
+        }
+
+        // Add layer effect properties information
+        result += "|LAYER_EFFECT_PROPERTIES:";
+        var propCount = 0;
+        for (var effectKey in layerEffectProperties) {
+            if (layerEffectProperties.hasOwnProperty(effectKey)) {
+                if (propCount > 0) result += ";;";  // Separator between effects
+
+                // Add comp::layer::effect key and property list
+                result += effectKey.replace(/,/g, "\\,").replace(/\|/g, "\\|").replace(/;/g, "\\;") + "::";
+
+                var propList = layerEffectProperties[effectKey];
+                for (var n = 0; n < propList.length; n++) {
+                    if (n > 0) result += ",";
+                    result += propList[n].replace(/,/g, "\\,").replace(/\|/g, "\\|").replace(/;/g, "\\;");
+                }
+                propCount++;
+            }
         }
 
         return result;

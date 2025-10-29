@@ -11,6 +11,8 @@ let currentProperty = null;
 let projectInfo = {
     compositions: [],
     compLayers: {},  // Layer information per composition { "comp_name": ["layer1", "layer2", ...] }
+    layerEffects: {},  // Effect information per layer { "comp_name::layer_name": ["effect1", "effect2", ...] }
+    layerEffectProperties: {},  // Effect property information { "comp_name::layer_name::effect_name": ["prop1", "prop2", ...] }
     effects: []
 };
 
@@ -198,6 +200,7 @@ const aeAnimation = [
 // Register completion provider for AE expressions
 function registerCompletionProvider() {
     monaco.languages.registerCompletionItemProvider('ae-expression', {
+        triggerCharacters: ['('],
         provideCompletionItems: function (model, position) {
             const word = model.getWordUntilPosition(position);
             const range = {
@@ -219,6 +222,26 @@ function registerCompletionProvider() {
 
             console.log('Text before cursor:', textBeforeCursor);
 
+            // Check for comp("compName").layer("layerName").effect("effectName")( pattern (effect property completion)
+            const compLayerEffectPropPattern = /comp\(["']([^"']+)["']\)\.layer\(["']([^"']+)["']\)\.effect\(["']([^"']+)["']\)\(/;
+            const effectPropMatch = textBeforeCursor.match(compLayerEffectPropPattern);
+
+            // Check for thisComp.layer("layerName").effect("effectName")( pattern (effect property completion)
+            const thisCompLayerEffectPropPattern = /thisComp\.layer\(["']([^"']+)["']\)\.effect\(["']([^"']+)["']\)\(/;
+            const thisCompEffectPropMatch = textBeforeCursor.match(thisCompLayerEffectPropPattern);
+
+            // Check for direct effect("effectName")( pattern (effect property completion on selected layer)
+            const directEffectPropPattern = /(?:^|[^.])effect\(["']([^"']+)["']\)\(/;
+            const directEffectPropMatch = textBeforeCursor.match(directEffectPropPattern);
+
+            // Check for comp("compName").layer("layerName").e pattern (effect completion)
+            const compLayerEffectPattern = /comp\(["']([^"']+)["']\)\.layer\(["']([^"']+)["']\)\.e/;
+            const effectMatch = textBeforeCursor.match(compLayerEffectPattern);
+
+            // Check for thisComp.layer("layerName").e pattern (effect completion)
+            const thisCompLayerEffectPattern = /thisComp\.layer\(["']([^"']+)["']\)\.e/;
+            const thisCompEffectMatch = textBeforeCursor.match(thisCompLayerEffectPattern);
+
             // Check for comp("compName").lay pattern (matches partial "layer")
             const compLayerPattern = /comp\(["']([^"']+)["']\)\.l/;
             const compMatch = textBeforeCursor.match(compLayerPattern);
@@ -227,7 +250,136 @@ function registerCompletionProvider() {
             const thisCompLayerPattern = /thisComp\.l/;
             const thisCompMatch = textBeforeCursor.match(thisCompLayerPattern);
 
-            if (compMatch) {
+            if (effectPropMatch) {
+                // comp("test").layer("test").effect("Color Control")( context: suggest properties from the effect
+                const compName = effectPropMatch[1];
+                const layerName = effectPropMatch[2];
+                const effectName = effectPropMatch[3];
+                const effectKey = compName + '::' + layerName + '::' + effectName;
+                console.log('Detected comp().layer().effect() property context for:', effectKey);
+
+                if (projectInfo.layerEffectProperties[effectKey]) {
+                    projectInfo.layerEffectProperties[effectKey].forEach(prop => {
+                        suggestions.push({
+                            label: `"${prop}"`,
+                            kind: monaco.languages.CompletionItemKind.Property,
+                            insertText: `"${prop}")`,
+                            documentation: `Property of ${effectName}: ${prop}`,
+                            range: range
+                        });
+                    });
+                }
+
+                return { suggestions: suggestions };
+            } else if (thisCompEffectPropMatch) {
+                // thisComp.layer("test").effect("Color Control")( context: suggest properties from all matching effects
+                const layerName = thisCompEffectPropMatch[1];
+                const effectName = thisCompEffectPropMatch[2];
+                console.log('Detected thisComp.layer().effect() property context for:', layerName, effectName);
+
+                // Search all comps for this layer+effect combination and collect properties
+                const allProps = new Set();
+                Object.keys(projectInfo.layerEffectProperties).forEach(key => {
+                    const parts = key.split('::');
+                    if (parts.length === 3 && parts[1] === layerName && parts[2] === effectName) {
+                        projectInfo.layerEffectProperties[key].forEach(prop => allProps.add(prop));
+                    }
+                });
+
+                allProps.forEach(prop => {
+                    suggestions.push({
+                        label: `"${prop}"`,
+                        kind: monaco.languages.CompletionItemKind.Property,
+                        insertText: `"${prop}")`,
+                        documentation: `Property of ${effectName}: ${prop}`,
+                        range: range
+                    });
+                });
+
+                return { suggestions: suggestions };
+            } else if (directEffectPropMatch) {
+                // effect("Color Control")( context: suggest properties from the effect on selected layer
+                const effectName = directEffectPropMatch[1];
+                console.log('Detected direct effect() property context for:', effectName);
+
+                // Get the selected layer's name from selectedLayers
+                if (selectedLayers.length > 0) {
+                    const layerName = selectedLayers[0].name;
+                    console.log('Selected layer:', layerName);
+
+                    // Search all comps for this layer+effect combination and collect properties
+                    const allProps = new Set();
+                    Object.keys(projectInfo.layerEffectProperties).forEach(key => {
+                        const parts = key.split('::');
+                        if (parts.length === 3 && parts[1] === layerName && parts[2] === effectName) {
+                            console.log('Found matching effect properties for:', key);
+                            projectInfo.layerEffectProperties[key].forEach(prop => allProps.add(prop));
+                        }
+                    });
+
+                    allProps.forEach(prop => {
+                        suggestions.push({
+                            label: `"${prop}"`,
+                            kind: monaco.languages.CompletionItemKind.Property,
+                            insertText: `"${prop}")`,
+                            documentation: `Property of ${effectName}: ${prop}`,
+                            range: range
+                        });
+                    });
+                }
+
+                return { suggestions: suggestions };
+            } else if (effectMatch) {
+                // comp("test").layer("test").e context: suggest effects from the specified layer
+                const compName = effectMatch[1];
+                const layerName = effectMatch[2];
+                const layerKey = compName + '::' + layerName;
+                console.log('Detected comp().layer().effect context for:', layerKey);
+
+                if (projectInfo.layerEffects[layerKey]) {
+                    projectInfo.layerEffects[layerKey].forEach(effect => {
+                        suggestions.push({
+                            label: `effect("${effect}")`,
+                            kind: monaco.languages.CompletionItemKind.Reference,
+                            insertText: `effect("${effect}")`,
+                            documentation: `Effect on ${layerName}: ${effect}`,
+                            range: range
+                        });
+                    });
+                }
+
+                return { suggestions: suggestions };
+            } else if (thisCompEffectMatch) {
+                // thisComp.layer("test").e context: search for effects from all comps
+                const layerName = thisCompEffectMatch[1];
+                console.log('Detected thisComp.layer().effect context for:', layerName);
+                console.log('projectInfo.layerEffects:', projectInfo.layerEffects);
+
+                // Search all comps for this layer name and collect effects
+                const allEffects = new Set();
+                Object.keys(projectInfo.layerEffects).forEach(key => {
+                    console.log('Checking key:', key);
+                    const parts = key.split('::');
+                    if (parts.length === 2 && parts[1] === layerName) {
+                        console.log('Match found! Effects:', projectInfo.layerEffects[key]);
+                        projectInfo.layerEffects[key].forEach(effect => allEffects.add(effect));
+                    }
+                });
+
+                console.log('All effects collected:', Array.from(allEffects));
+
+                allEffects.forEach(effect => {
+                    suggestions.push({
+                        label: `effect("${effect}")`,
+                        kind: monaco.languages.CompletionItemKind.Reference,
+                        insertText: `effect("${effect}")`,
+                        documentation: `Effect on ${layerName}: ${effect}`,
+                        range: range
+                    });
+                });
+
+                return { suggestions: suggestions };
+            } else if (compMatch) {
                 // comp("test").lay context: suggest only layers from the specified comp
                 const compName = compMatch[1];
                 console.log('Detected comp().layer context for:', compName);
@@ -675,6 +827,66 @@ function updateProjectInfo() {
                             }
                         });
                     }
+                } else if (part.indexOf('LAYER_EFFECTS:') === 0) {
+                    const layerEffectsData = part.substring(14);
+                    projectInfo.layerEffects = {};
+
+                    if (layerEffectsData) {
+                        // Split data per layer (separated by ;;)
+                        const layerEntries = layerEffectsData.split(';;');
+
+                        layerEntries.forEach(entry => {
+                            if (entry) {
+                                // Split comp::layer key and effect list (separated by the THIRD ::)
+                                // Format: "Comp Name::Layer Name::Effect1,Effect2"
+                                const parts = entry.split('::');
+                                if (parts.length >= 3) {
+                                    // Reconstruct the key as "compName::layerName"
+                                    const layerKey = parts[0] + '::' + parts[1];
+
+                                    // The rest is the effects list
+                                    const effectsStr = parts.slice(2).join('::');
+                                    const effects = effectsStr ? effectsStr.split(',').map(e =>
+                                        e.replace(/\\,/g, ',')
+                                         .replace(/\\\|/g, '|')
+                                         .replace(/\\;/g, ';')
+                                    ) : [];
+
+                                    projectInfo.layerEffects[layerKey] = effects;
+                                }
+                            }
+                        });
+                    }
+                } else if (part.indexOf('LAYER_EFFECT_PROPERTIES:') === 0) {
+                    const layerEffectPropsData = part.substring(24);
+                    projectInfo.layerEffectProperties = {};
+
+                    if (layerEffectPropsData) {
+                        // Split data per effect (separated by ;;)
+                        const effectEntries = layerEffectPropsData.split(';;');
+
+                        effectEntries.forEach(entry => {
+                            if (entry) {
+                                // Split comp::layer::effect key and property list (separated by the FOURTH ::)
+                                // Format: "Comp Name::Layer Name::Effect Name::Prop1,Prop2"
+                                const parts = entry.split('::');
+                                if (parts.length >= 4) {
+                                    // Reconstruct the key as "compName::layerName::effectName"
+                                    const effectKey = parts[0] + '::' + parts[1] + '::' + parts[2];
+
+                                    // The rest is the properties list
+                                    const propsStr = parts.slice(3).join('::');
+                                    const props = propsStr ? propsStr.split(',').map(p =>
+                                        p.replace(/\\,/g, ',')
+                                         .replace(/\\\|/g, '|')
+                                         .replace(/\\;/g, ';')
+                                    ) : [];
+
+                                    projectInfo.layerEffectProperties[effectKey] = props;
+                                }
+                            }
+                        });
+                    }
                 } else if (part.indexOf('EFFECTS:') === 0) {
                     const effects = part.substring(8);
                     projectInfo.effects = effects ? effects.split(',').map(e => e.replace(/\\,/g, ',').replace(/\\\|/g, '|')) : [];
@@ -682,6 +894,9 @@ function updateProjectInfo() {
             });
 
             console.log('Project info updated:', projectInfo);
+            console.log('Layer effects keys:', Object.keys(projectInfo.layerEffects));
+            console.log('Layer effects data:', projectInfo.layerEffects);
+            console.log('Layer effect properties keys:', Object.keys(projectInfo.layerEffectProperties));
         }
     });
 }

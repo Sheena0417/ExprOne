@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ExtensionList>
-    <Extension Id="com.expressioncontrol.monaco">
+    <Extension Id="com.exprone">
         <HostList>
             <Host Name="AEFT" Port="8092"/>
         </HostList>
